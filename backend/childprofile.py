@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Tuple
 from dotenv import load_dotenv
 
 import pandas as pd
@@ -9,7 +9,7 @@ from vertexai.generative_models import GenerativeModel, Part
 from pydantic import BaseModel, ValidationError
 
 # Load environment variables
-dotenv_path = os.getenv("DOTENV_PATH")  # optional: custom .env location
+dotenv_path = os.getenv("DOTENV_PATH")
 if dotenv_path:
     load_dotenv(dotenv_path)
 else:
@@ -36,7 +36,7 @@ class ChildProfile:
         self.child_id = child_id
         self.data_root = data_root
         self.trait_db = trait_db
-        # Use child_id directly as folder name to avoid double "child_" prefix
+        # use child_id directly for folder
         self.profile_dir = os.path.join(data_root, child_id)
         os.makedirs(self.profile_dir, exist_ok=True)
         self.report_fp = os.path.join(self.profile_dir, "report.json")
@@ -85,7 +85,7 @@ class ChildProfile:
                 matched.append(row.to_dict())
         return matched
 
-    def match_and_save_traits(self):
+    def match_and_save_traits(self) -> List[Dict]:
         traits = self.match_traits()
         self.save_traits(traits)
         return traits
@@ -97,7 +97,15 @@ class ChildProfile:
             return json.load(f)
 
     def save_log(self, log_entry: Dict):
+        """
+        Appends a log entry, but ensures only one 'initial' entry exists.
+        """
         logs = self.load_logs()
+        if log_entry.get('entry_type') == 'initial':
+            for existing in logs:
+                if existing.get('entry_type') == 'initial':
+                    print("⚠️ Initial log entry already exists; skipping append.")
+                    return
         logs.append(log_entry)
         with open(self.logs_fp, "w") as f:
             json.dump(logs, f, indent=2)
@@ -110,7 +118,7 @@ class ChildProfile:
             "logs": self.load_logs()
         }
 
-# ----- GenAI integration -----
+# ----- GenAI integration and utilities -----
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -139,11 +147,7 @@ def create_prompt(traits: List[Dict]) -> str:
         f"{json.dumps(schema_example, indent=2)}"
     )
 
-
 def strip_code_fences(text: str) -> str:
-    """
-    Remove markdown code fences (```...```) from LLM output.
-    """
     if text.startswith("```"):
         newline_pos = text.find("\n")
         if newline_pos != -1:
@@ -157,67 +161,61 @@ def generate_log(
     model_name: str = "gemini-2.0-flash",
     traits: List[Dict] = None
 ) -> Entry:
-    """
-    Calls the LLM, cleans fences, parses its JSON output,
-    and validates it against our Pydantic Entry schema.
-    Returns an Entry or raises on error.
-    """
     prompt = create_prompt(traits or [])
     vertexai.init(project=PROJECT_ID, location=LOCATION)
     model = GenerativeModel(model_name)
     response = model.generate_content([Part.from_text(prompt)])
-    raw = response.text
-
-    cleaned = strip_code_fences(raw)
-
+    cleaned = strip_code_fences(response.text)
     try:
         obj = json.loads(cleaned)
     except json.JSONDecodeError as e:
         print("❌ Invalid JSON after cleaning:", e)
         print(cleaned)
         raise
-
     try:
-        entry = Entry(**obj)
-        return entry
+        return Entry(**obj)
     except ValidationError as e:
         print("❌ Schema validation failed:")
         print(e.json())
         raise
 
-# ----- Main execution block -----
 
-if __name__ == "__main__":
+def create_child_profile(sample_json_path: str) -> Tuple[ChildProfile, Entry]:
+    """
+    High-level wrapper: given a sample JSON filepath,
+    - loads trait reference and profile data
+    - creates and saves a ChildProfile
+    - generates (once) and saves the initial log
+    - returns the ChildProfile and Entry objects
+    """
     from config import DATA_DIR, PROFILES_DIR
 
-    # Load trait reference CSV
     trait_csv = os.path.join(DATA_DIR, "Genotype_Trait_Reference.csv")
     trait_db = pd.read_csv(trait_csv)
 
-    # Load sample report JSON
-    sample_json = os.path.join(DATA_DIR, "sample_upload.json")
-    with open(sample_json, "r") as f:
+    with open(sample_json_path, "r") as f:
         profile_data = json.load(f)
 
-    # Create profile
     child = ChildProfile.create_from_report(
         profile_data,
         trait_db,
         data_root=PROFILES_DIR
     )
 
-    # Print combined profile
-    print(json.dumps(child.to_json(), indent=2))
-
-    # Generate and save a new log entry
     traits_fp = os.path.join(PROFILES_DIR, profile_data['child_id'], "traits.json")
     with open(traits_fp, "r") as f:
         traits_data = json.load(f)
 
     entry = generate_log(traits=traits_data)
-    print("✅ Valid log entry:")
-    # Use Pydantic V2-compatible JSON serialization
-    print(entry.model_dump_json(indent=2))
-
-    # Append to child's log file
     child.save_log(entry.model_dump())
+
+    return child, entry
+
+
+if __name__ == "__main__":
+    from config import DATA_DIR
+    default_json = os.path.join(DATA_DIR, "sample_upload.json")
+    child, entry = create_child_profile(default_json)
+    print(json.dumps(child.to_json(), indent=2))
+    print("✅ Initial log entry:")
+    print(entry.model_dump_json(indent=2))
