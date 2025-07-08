@@ -8,12 +8,7 @@ import vertexai
 from vertexai.generative_models import GenerativeModel, Part
 from pydantic import BaseModel, ValidationError
 
-# Load environment variables
-dotenv_path = os.getenv("DOTENV_PATH")
-if dotenv_path:
-    load_dotenv(dotenv_path)
-else:
-    load_dotenv()
+load_dotenv()
 
 # ----- Pydantic schema definitions -----
 

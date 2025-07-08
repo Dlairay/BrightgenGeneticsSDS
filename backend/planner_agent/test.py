@@ -14,9 +14,8 @@ from google.adk.runners import Runner
 from google.genai import types
 
 # Allow imports from backend directory
-current_script_dir = os.path.dirname(os.path.abspath(__file__))
-backend_dir = os.path.dirname(current_script_dir)
-sys.path.insert(0, backend_dir)
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_current_dir))
 import config
 DATA_DIR = config.DATA_DIR
 
@@ -25,35 +24,32 @@ warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
 load_dotenv()
 
-# ─── Pydantic Schemas ─────────────────────────────────────────────────────────┐
+# ─── Pydantic Schemas ─────────────────────────────────────────────────────────
 class Recommendation(BaseModel):
     trait: str
     goal: str
     activity: str
 
 class LogStructure(BaseModel):
-    entry_type: Literal["checkin", "emergency"]
+    entry_type: Literal["initial", "checkin", "emergency"]
     interpreted_traits: List[str]
     recommendations: List[Recommendation]
     summary: str
     followup_questions: List[str]
-# └────────────────────────────────────────────────────────────────────────────┘
 
-# ─── Utility: Clean agent responses ────────────────────────────────────────────┐
-def strip_code_fences(text: str) -> str:
-    """
-    Remove Markdown code fences or extra backticks from the AI response.
-    """
+# ─── Utility: Clean agent responses ────────────────────────────────────────────
+def _strip_code_fences(text: str) -> str:
+    "Remove Markdown code fences from AI responses."
     if text.startswith("```"):
         parts = text.split("\n", 1)
         text = parts[1] if len(parts) > 1 else ''
     if text.rstrip().endswith("```"):
         text = text.rstrip()[:-3]
     return text.strip()
-# └────────────────────────────────────────────────────────────────────────────┘
 
-# ─── Tools: read_logs & append_logs ────────────────────────────────────────────┐
+# ─── Tools: read_logs & append_logs ────────────────────────────────────────────
 def read_logs(child_id: int) -> List[dict]:
+    "Read existing logs for a child."
     fp = os.path.join(DATA_DIR, "child_profiles", f"child_{child_id}", "logs.json")
     if not os.path.exists(fp):
         raise FileNotFoundError(f"Logs not found for Child ID {child_id}: {fp}")
@@ -61,6 +57,7 @@ def read_logs(child_id: int) -> List[dict]:
         return json.load(f)
 
 def append_logs(child_id: int, log_entry: dict) -> None:
+    "Validate and append a new log entry."
     validated = LogStructure(**log_entry)
     dirpath = os.path.join(DATA_DIR, "child_profiles", f"child_{child_id}")
     os.makedirs(dirpath, exist_ok=True)
@@ -71,135 +68,161 @@ def append_logs(child_id: int, log_entry: dict) -> None:
             data = read_logs(child_id)
         except:
             data = []
+    # Prevent multiple initial entries
+    if validated.entry_type == "initial":
+        data = [e for e in data if e.get("entry_type") != "initial"]
     data.append(validated.dict())
     with open(fp, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
-# └────────────────────────────────────────────────────────────────────────────┘
 
-# ─── Agents Setup ─────────────────────────────────────────────────────────────┐
-AGENT_MODEL = "gemini-2.0-flash"
+# ─── Agents Setup ─────────────────────────────────────────────────────────────
+MODEL = "gemini-2.0-flash"
 
 child_log_agent = Agent(
     name="child_log_agent_v1",
-    model=AGENT_MODEL,
-    description="Generates structured child log entries based on follow-up answers.",
-    instruction=(
-        "You are a child log assistant. When given 'interpreted_traits' (list of strings) and 'followup_answers' (dict mapping questions to response strings), "
-        "generate a new JSON log entry that matches this schema exactly: {entry_type: \"checkin\" | \"emergency\", interpreted_traits: [...], recommendations: [{trait, goal, activity}], summary: string, followup_questions: [strings]}.")
+    model=MODEL,
+    description="Generates structured child log entries based on follow-up answers and full history.",
+    instruction="""
+You are a JSON-only assistant.
+Receive a JSON payload with keys:
+  'interpreted_traits' (list of strings),
+  'followup_answers' (dict mapping questions to responses),
+  'log_history' (array of prior entries).
+Output exactly one JSON object matching this schema, with no markdown or code fences:
+{
+  "entry_type": "initial" or "checkin" or "emergency",
+  "interpreted_traits": [string,...],
+  "recommendations": [ { "trait": string, "goal": string, "activity": string }, ... ],
+  "summary": string,
+  "followup_questions": [string,...]
+}
+Use 'log_history' for full context when generating your response.
+"""
 )
 
 option_agent = Agent(
     name="child_log_option_agent",
-    model=AGENT_MODEL,
-    description="Generates possible responses to a follow-up question given traits.",
+    model=MODEL,
+    description="Generates possible responses to a follow-up question.",
     instruction=(
-        "You are an assistant that, when given a JSON object with keys 'question' (string) and 'interpreted_traits' (list of strings), "
-        "return a JSON array of three concise strings, each a relevant possible response to the question.")
+        "You are a JSON-only assistant.\n"
+        "Given a JSON object with 'question' (string) and 'interpreted_traits' (list of strings),\n"
+        "return exactly three concise strings in a JSON array, each a relevant response.\n"
+        "Do not wrap in markdown or code fences."
+    )
 )
-# └────────────────────────────────────────────────────────────────────────────┘
 
-# ─── Async Helpers ────────────────────────────────────────────────────────────┐
-async def generate_question_options(runner: Runner, question: str, traits: List[str]) -> List[str]:
+# ─── Async Helpers ────────────────────────────────────────────────────────────
+async def _generate_question_options(
+    runner: Runner, question: str, traits: List[str], session_id: str
+) -> List[str]:
     payload = {"question": question, "interpreted_traits": traits}
     content = types.Content(role='user', parts=[types.Part(text=json.dumps(payload))])
-    result_text = None
-    async for event in runner.run_async(user_id="user_1", session_id="session_001", new_message=content):
-        if event.is_final_response() and event.content:
-            result_text = event.content.parts[0].text
+    result = None
+    async for ev in runner.run_async(
+        user_id="user_1", session_id=session_id, new_message=content
+    ):
+        if ev.is_final_response() and ev.content:
+            result = ev.content.parts[0].text
             break
-    if not result_text:
-        raise RuntimeError("Failed to generate options for question.")
-    return json.loads(strip_code_fences(result_text))
+    if not result:
+        raise RuntimeError("Option generation failed")
+    return json.loads(_strip_code_fences(result))
 
-async def generate_new_entry(runner: Runner, traits: List[str], answers: dict) -> str:
-    payload = {"interpreted_traits": traits, "followup_answers": answers}
+async def _generate_new_entry(
+    runner: Runner,
+    traits: List[str],
+    answers: dict,
+    session_id: str,
+    history: List[dict]
+) -> dict:
+    payload = {
+        "interpreted_traits": traits,
+        "followup_answers": answers,
+        "log_history": history
+    }
     content = types.Content(role='user', parts=[types.Part(text=json.dumps(payload))])
-    raw_text = None
-    async for event in runner.run_async(user_id="user_1", session_id="session_001", new_message=content):
-        if event.is_final_response() and event.content:
-            raw_text = event.content.parts[0].text
+    result = None
+    async for ev in runner.run_async(
+        user_id="user_1", session_id=session_id, new_message=content
+    ):
+        if ev.is_final_response() and ev.content:
+            result = ev.content.parts[0].text
             break
-    if not raw_text:
-        raise RuntimeError("Failed to generate new log entry.")
-    return strip_code_fences(raw_text)
-# └────────────────────────────────────────────────────────────────────────────┘
+    if not result:
+        raise RuntimeError("Entry generation failed")
+    return json.loads(_strip_code_fences(result))
 
-# ─── Interactive Flow ─────────────────────────────────────────────────────────┐
-async def handle_child_session(child_id: int, runner: Runner, opt_runner: Runner):
-    try:
-        logs = read_logs(child_id)
-    except Exception as e:
-        print(f"Error reading logs: {e}")
-        return
+# ─── Interactive Flow ─────────────────────────────────────────────────────────
+async def handle_child_session(
+    child_id: int,
+    runner: Runner,
+    opt_runner: Runner,
+    session_id: str
+):
+    logs = read_logs(child_id)
     if not logs:
-        print(f"No logs found for Child ID {child_id}.")
+        print(f"No logs for Child {child_id}")
         return
     latest = logs[-1]
     questions = latest.get('followup_questions', [])
     if not questions:
-        print("No follow-up questions in the latest log.")
+        print("No follow-up questions.")
         return
-
-    print("\nPlease choose or type your response to each follow-up question:\n")
+    print("Respond to each follow-up question:")
     answers = {}
     for q in questions:
-        print(f"Question: {q}")
+        print(f"- {q}")
+        opts = []
         try:
-            opts = await generate_question_options(opt_runner, q, latest['interpreted_traits'])
-        except Exception:
-            opts = []
+            opts = await _generate_question_options(
+                opt_runner, q, latest['interpreted_traits'], session_id
+            )
+        except:
+            pass
         if opts:
-            for i, opt in enumerate(opts, 1):
-                print(f"  {i}. {opt}")
-        resp = input("Your response (enter number or custom text): ").strip()
+            for i, o in enumerate(opts, 1): print(f"  {i}. {o}")
+            print("Suggested answers:", "; ".join(opts))
+        prompt_text = (
+            f"Your response (enter number 1-{len(opts)} or type your own): " if opts else "Your response: "
+        )
+        resp = input(prompt_text).strip()
         if resp.isdigit() and opts and 1 <= int(resp) <= len(opts):
-            answers[q] = opts[int(resp) - 1]
+            answers[q] = opts[int(resp)-1]
         else:
             answers[q] = resp
+    new_entry = await _generate_new_entry(
+        runner,
+        latest['interpreted_traits'],
+        answers,
+        session_id,
+        logs
+    )
+    append_logs(child_id, new_entry)
+    print("New Recommendations:")
+    for rec in new_entry['recommendations']:
+        print(f"- {rec['trait']}: {rec['activity']}")
 
-    print("\nGenerating new recommendations based on your responses...")
-    entry_text = await generate_new_entry(runner, latest['interpreted_traits'], answers)
-    try:
-        new_entry = json.loads(entry_text)
-    except json.JSONDecodeError:
-        print("Agent output was not valid JSON after cleaning:")
-        print(entry_text)
-        return
-
-    try:
-        append_logs(child_id, new_entry)
-        print(f"New log entry appended. Entry type: {new_entry.get('entry_type')}")
-    except ValidationError as ve:
-        print(f"Validation error: {ve}")
-        return
-    except Exception as e:
-        print(f"Error appending log: {e}")
-        return
-
-    print("\nNew Recommendations:")
-    for rec in new_entry.get('recommendations', []):
-        print(f"- Trait: {rec['trait']} | Goal: {rec['goal']} | Activity: {rec['activity']}")
-# └────────────────────────────────────────────────────────────────────────────┘
-
-# ─── Pipeline Runner ───────────────────────────────────────────────────────────┐
+# ─── Exported Pipeline ─────────────────────────────────────────────────────────
 async def run_for_child(child_id: int):
-    session_service = InMemorySessionService()
-    await session_service.create_session(
-        app_name="child_log_manager_app", user_id="user_1", session_id=f"session_{child_id}"
+    """
+    Run the interactive log pipeline for a given child_id.
+    """
+    session_id = f"session_{child_id}"
+    svc = InMemorySessionService()
+    await svc.create_session(
+        app_name="child_log_manager_app", user_id="user_1", session_id=session_id
     )
     runner = Runner(
         agent=child_log_agent,
         app_name="child_log_manager_app",
-        session_service=session_service
+        session_service=svc
     )
     opt_runner = Runner(
         agent=option_agent,
         app_name="child_log_manager_app",
-        session_service=session_service
+        session_service=svc
     )
-    await handle_child_session(child_id, runner, opt_runner)
-# └────────────────────────────────────────────────────────────────────────────┘
+    await handle_child_session(child_id, runner, opt_runner, session_id)
 
-if __name__ == '__main__':
-    cid = 1
-    asyncio.run(run_for_child(cid))
+__all__ = ["run_for_child"]
