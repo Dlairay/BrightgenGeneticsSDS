@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Child Genetic Profiling - Test App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 400;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8a8a8 0%, #8c8c8c 100%);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(168, 168, 168, 0.3);
+        }
+
+        .child-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            text-align: left;
+        }
+
+        .child-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .child-card p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .question-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .option {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e1e5e9;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .recommendation {
+            background: #e8f5e8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            text-align: left;
+        }
+
+        .recommendation h4 {
+            color: #155724;
+            margin-bottom: 5px;
+        }
+
+        .recommendation p {
+            color: #155724;
+            margin: 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            background: #f0f4ff;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div class="screen active" id="loginScreen">
+            <h1>🧬 GeneKid</h1>
+            <h2>Welcome Back</h2>
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password">
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn btn-secondary" onclick="showRegister()">Create Account</button>
+            <div id="loginError"></div>
+        </div>
+
+        <!-- Register Screen -->
+        <div class="screen" id="registerScreen">
+            <h1>🧬 GeneKid</h1>
+            <h2>Create Account</h2>
+            <div class="form-group">
+                <label for="registerName">Full Name</label>
+                <input type="text" id="registerName" placeholder="Enter your full name">
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" placeholder="Create a password">
+            </div>
+            <button class="btn" onclick="register()">Create Account</button>
+            <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+            <div id="registerError"></div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div class="screen" id="dashboardScreen">
+            <h1>👶 Your Children</h1>
+            <div id="childrenList"></div>
+            <button class="btn" onclick="showAddChild()">Add New Child</button>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Add Child Screen -->
+        <div class="screen" id="addChildScreen">
+            <h1>➕ Add New Child</h1>
+            <div class="form-group">
+                <label for="childName">Child's Name</label>
+                <input type="text" id="childName" placeholder="Enter child's name">
+            </div>
+            <div class="form-group">
+                <label for="geneticReport">Genetic Report (JSON)</label>
+                <div class="file-upload" onclick="document.getElementById('geneticFile').click()">
+                    <input type="file" id="geneticFile" accept=".json" onchange="handleFileSelect(event)">
+                    <p id="fileStatus">Click to upload genetic report JSON file</p>
+                </div>
+            </div>
+            <button class="btn" onclick="uploadGeneticReport()" id="uploadBtn" disabled>Upload Report</button>
+            <button class="btn btn-secondary" onclick="showDashboard()">Back</button>
+            <div id="uploadError"></div>
+        </div>
+
+        <!-- Questions Screen -->
+        <div class="screen" id="questionsScreen">
+            <h1>📝 Weekly Check-in</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="questionContainer"></div>
+            <div id="questionError"></div>
+        </div>
+
+        <!-- Results Screen -->
+        <div class="screen" id="resultsScreen">
+            <h1>✅ Check-in Complete!</h1>
+            <div id="recommendationsContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let authToken = localStorage.getItem('authToken');
+        let currentQuestions = [];
+        let currentAnswers = [];
+        let currentQuestionIndex = 0;
+        let currentChildId = null;
+        let selectedFile = null;
+
+        // API base URL - change this to your FastAPI server URL
+        const API_BASE = 'http://localhost:8000';
+
+        // Utility functions
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showError(elementId, message) {
+            const errorDiv = document.getElementById(elementId);
+            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(elementId, message) {
+            const successDiv = document.getElementById(elementId);
+            successDiv.innerHTML = `<div class="success">${message}</div>`;
+            setTimeout(() => {
+                successDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+                ...options.headers
+            };
+
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'API call failed');
+            }
+
+            return response.json();
+        }
+
+        // Authentication functions
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showError('loginError', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                authToken = response.access_token;
+                localStorage.setItem('authToken', authToken);
+                loadDashboard();
+            } catch (error) {
+                showError('loginError', error.message);
+            }
+        }
+
+        async function register() {
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!name || !email || !password) {
+                showError('registerError', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                authToken = response.access_token;
+                localStorage.setItem('authToken', authToken);
+                loadDashboard();
+            } catch (error) {
+                showError('registerError', error.message);
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            showLogin();
+        }
+
+        // Screen navigation functions
+        function showLogin() {
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+            showScreen('loginScreen');
+        }
+
+        function showRegister() {
+            document.getElementById('registerName').value = '';
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            showScreen('registerScreen');
+        }
+
+        function showDashboard() {
+            loadDashboard();
+        }
+
+        function showAddChild() {
+            document.getElementById('childName').value = '';
+            document.getElementById('fileStatus').textContent = 'Click to upload genetic report JSON file';
+            document.getElementById('uploadBtn').disabled = true;
+            selectedFile = null;
+            showScreen('addChildScreen');
+        }
+
+        // Dashboard functions
+        async function loadDashboard() {
+            try {
+                const children = await apiCall('/children');
+                displayChildren(children);
+                showScreen('dashboardScreen');
+            } catch (error) {
+                showError('loginError', 'Failed to load dashboard');
+                logout();
+            }
+        }
+
+        function displayChildren(children) {
+            const container = document.getElementById('childrenList');
+            
+            if (children.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No children added yet. Add your first child to get started!</p>';
+                return;
+            }
+
+            container.innerHTML = children.map(child => `
+                <div class="child-card">
+                    <h3>${child.name || `Child ${child.id}`}</h3>
+                    <p><strong>Gender:</strong> ${child.gender}</p>
+                    <p><strong>Birthday:</strong> ${child.birthday}</p>
+                    <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
+                </div>
+            `).join('');
+        }
+
+        // File upload functions
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('fileStatus').textContent = `Selected: ${selectedFile.name}`;
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        async function uploadGeneticReport() {
+            const childName = document.getElementById('childName').value;
+            
+            if (!childName || !selectedFile) {
+                showError('uploadError', 'Please provide child name and select a file');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('child_name', childName);
+
+                const response = await fetch(`${API_BASE}/children/upload-genetic-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const result = await response.json();
+                showSuccess('uploadError', 'Genetic report uploaded successfully!');
+                
+                setTimeout(() => {
+                    loadDashboard();
+                }, 2000);
+            } catch (error) {
+                showError('uploadError', error.message);
+            }
+        }
+
+        // Check-in functions
+        async function startCheckIn(childId) {
+            currentChildId = childId;
+            currentQuestionIndex = 0;
+            currentAnswers = [];
+
+            try {
+                const response = await apiCall(`/children/${childId}/check-in/questions`);
+                currentQuestions = response.questions;
+
+                if (currentQuestions.length === 0) {
+                    showError('uploadError', 'No questions available for check-in');
+                    return;
+                }
+
+                showScreen('questionsScreen');
+                displayQuestion();
+            } catch (error) {
+                showError('uploadError', `Failed to load questions: ${error.message}`);
+            }
+        }
+
+        function displayQuestion() {
+            const container = document.getElementById('questionContainer');
+            const question = currentQuestions[currentQuestionIndex];
+            
+            // Update progress bar
+            const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+
+            container.innerHTML = `
+                <div class="question-card">
+                    <h3>Question ${currentQuestionIndex + 1} of ${currentQuestions.length}</h3>
+                    <h3>${question.question}</h3>
+                    <div id="optionsContainer">
+                        ${question.options.map((option, index) => `
+                            <div class="option" onclick="selectOption(${index})" data-option="${index}">
+                                ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn" onclick="nextQuestion()" id="nextBtn" disabled>
+                            ${currentQuestionIndex === currentQuestions.length - 1 ? 'Submit' : 'Next'}
+                        </button>
+                        ${currentQuestionIndex > 0 ? '<button class="btn btn-secondary" onclick="prevQuestion()">Previous</button>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectOption(optionIndex) {
+            // Remove previous selection
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selection to clicked option
+            document.querySelector(`[data-option="${optionIndex}"]`).classList.add('selected');
+            
+            // Enable next button
+            document.getElementById('nextBtn').disabled = false;
+            
+            // Store answer
+            const question = currentQuestions[currentQuestionIndex];
+            currentAnswers[currentQuestionIndex] = {
+                question: question.question,
+                answer: question.options[optionIndex]
+            };
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            } else {
+                submitCheckIn();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        }
+
+        async function submitCheckIn() {
+            try {
+                const response = await apiCall(`/children/${currentChildId}/check-in/submit`, {
+                    method: 'POST',
+                    body: JSON.stringify({ answers: currentAnswers })
+                });
+
+                displayResults(response);
+                showScreen('resultsScreen');
+            } catch (error) {
+                showError('questionError', `Failed to submit check-in: ${error.message}`);
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('recommendationsContainer');
+            
+            container.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>Summary</h3>
+                    <p>${results.summary}</p>
+                </div>
+                <div>
+                    <h3>Recommendations</h3>
+                    ${results.recommendations.map(rec => `
+                        <div class="recommendation">
+                            <h4>${rec.trait}</h4>
+                            <p><strong>Goal:</strong> ${rec.goal}</p>
+                            <p><strong>Activity:</strong> ${rec.activity}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Initialize app
+        if (authToken) {
+            loadDashboard();
+        } else {
+            showLogin();
+        }
+    </script>
+</body>
+</html>
