@@ -1,70 +1,76 @@
 import os
 import json
-from typing import List, Dict, Literal, Tuple
+from typing import List, Dict, Tuple, Any
 from dotenv import load_dotenv
-
 import pandas as pd
-import vertexai
-from vertexai.generative_models import GenerativeModel, Part
-from pydantic import BaseModel, ValidationError
+from google.cloud import firestore # Import firestore
+import datetime # Import datetime for type checking
 
 load_dotenv()
 
-# ----- Pydantic schema definitions -----
+# Initialize Firestore Client
+db = firestore.Client()
 
-class Recommendation(BaseModel):
-    trait: str
-    goal: str
-    activity: str
-
-class Entry(BaseModel):
-    entry_type: Literal["checkin", "emergency", "initial"]
-    interpreted_traits: List[str]
-    recommendations: List[Recommendation]
-    summary: str
-    followup_questions: List[str]
+# ----- Helper function for recursive timestamp conversion -----
+def _convert_firestore_timestamps_to_strings(obj: Any) -> Any:
+    """
+    Recursively converts Firestore DatetimeWithNanoseconds objects to ISO 8601 strings
+    within dictionaries and lists.
+    """
+    if isinstance(obj, datetime.datetime): # DatetimeWithNanoseconds is a subclass of datetime.datetime
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: _convert_firestore_timestamps_to_strings(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_firestore_timestamps_to_strings(elem) for elem in obj]
+    else:
+        return obj
 
 # ----- ChildProfile class definition -----
 
 class ChildProfile:
-    def __init__(self, child_id: str, data_root: str, trait_db: pd.DataFrame):
+    def __init__(self, child_id: str, trait_db: pd.DataFrame): # Removed data_root
         self.child_id = child_id
-        self.data_root = data_root
         self.trait_db = trait_db
-        # use child_id directly for folder
-        self.profile_dir = os.path.join(data_root, child_id)
-        os.makedirs(self.profile_dir, exist_ok=True)
-        self.report_fp = os.path.join(self.profile_dir, "report.json")
-        self.traits_fp = os.path.join(self.profile_dir, "traits.json")
-        self.logs_fp = os.path.join(self.profile_dir, "logs.json")
+        # Reference to the Firestore document for this child's profile
+        self.profile_doc_ref = db.collection('profiles').document(str(self.child_id))
+        # Ensure the document exists (implicitly created on first write)
+        
+        # No more local file paths
 
     @classmethod
     def create_from_report(
         cls,
         profile_data: Dict,
         trait_db: pd.DataFrame,
-        data_root: str
+        # data_root: str # Removed data_root from classmethod
     ) -> "ChildProfile":
-        child = cls(profile_data["child_id"], data_root, trait_db)
+        # Pass only necessary arguments to __init__
+        child = cls(profile_data["child_id"], trait_db) 
         child.save_report(profile_data)
         child.match_and_save_traits()
         return child
 
     def load_report(self) -> Dict:
-        with open(self.report_fp) as f:
-            return json.load(f)
+        doc = self.profile_doc_ref.get()
+        if doc.exists:
+            return doc.to_dict().get("report", {})
+        return {}
 
     def save_report(self, data: Dict):
-        with open(self.report_fp, "w") as f:
-            json.dump(data, f, indent=2)
+        # Firestore set with merge=True will create the document if it doesn't exist
+        self.profile_doc_ref.set({"report": data}, merge=True)
+        print(f"✅ Successfully saved report for Child ID {self.child_id} to Firestore.")
 
     def load_traits(self) -> List[Dict]:
-        with open(self.traits_fp) as f:
-            return json.load(f)
+        doc = self.profile_doc_ref.get()
+        if doc.exists:
+            return doc.to_dict().get("traits", [])
+        return []
 
     def save_traits(self, traits: List[Dict]):
-        with open(self.traits_fp, "w") as f:
-            json.dump(traits, f, indent=2)
+        self.profile_doc_ref.set({"traits": traits}, merge=True)
+        print(f"✅ Successfully saved traits for Child ID {self.child_id} to Firestore.")
 
     def match_traits(self) -> List[Dict]:
         profile = self.load_report()
@@ -86,104 +92,69 @@ class ChildProfile:
         return traits
 
     def load_logs(self) -> List[Dict]:
-        if not os.path.exists(self.logs_fp):
-            return []
-        with open(self.logs_fp) as f:
-            return json.load(f)
+        # Read from the 'logs' subcollection
+        logs_ref = self.profile_doc_ref.collection('logs').order_by(
+            'timestamp', direction=firestore.Query.ASCENDING
+        )
+        logs = [doc.to_dict() for doc in logs_ref.stream()]
+        
+        # The recursive conversion function in to_json will handle timestamps
+        return logs
 
     def save_log(self, log_entry: Dict):
         """
         Appends a log entry, but ensures only one 'initial' entry exists.
         """
-        logs = self.load_logs()
-        if log_entry.get('entry_type') == 'initial':
-            for existing in logs:
-                if existing.get('entry_type') == 'initial':
-                    print("⚠️ Initial log entry already exists; skipping append.")
-                    return
-        logs.append(log_entry)
-        with open(self.logs_fp, "w") as f:
-            json.dump(logs, f, indent=2)
+        logs_collection_ref = self.profile_doc_ref.collection('logs')
+
+        # Make a copy of the log_entry to avoid modifying the original dictionary
+        log_entry_to_save = log_entry.copy()
+
+        if log_entry_to_save.get('entry_type') == 'initial':
+            # Check for existing initial entries in Firestore
+            initial_logs = logs_collection_ref.where('entry_type', '==', 'initial').stream()
+            if any(true for true in initial_logs):
+                print("⚠️ Initial log entry already exists in Firestore; skipping append.")
+                return
+
+        # Add a server-side timestamp for ordering.
+        log_entry_to_save['timestamp'] = firestore.SERVER_TIMESTAMP
+        
+        # Save the log entry as a new document in the subcollection
+        logs_collection_ref.add(log_entry_to_save)
+        print(f"✅ Successfully saved log for Child ID {self.child_id} to Firestore.")
 
     def to_json(self) -> Dict:
+        # Retrieve data from Firestore (now using Firestore methods)
+        report_data = self.load_report()
+        traits_data = self.load_traits()
+        logs_data = self.load_logs() 
+
+        # Apply the recursive conversion to all data structures before returning
+        report_data_converted = _convert_firestore_timestamps_to_strings(report_data)
+        traits_data_converted = _convert_firestore_timestamps_to_strings(traits_data)
+        logs_data_converted = _convert_firestore_timestamps_to_strings(logs_data)
+
         return {
             "child_id": self.child_id,
-            "report": self.load_report(),
-            "traits": self.load_traits(),
-            "logs": self.load_logs()
+            "report": report_data_converted,
+            "traits": traits_data_converted,
+            "logs": logs_data_converted
         }
 
-# ----- GenAI integration and utilities -----
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
-LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
-GOOGLE_GENAI_USE_VERTEXAI = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "true").lower() == "true"
+# ----- High-level wrapper function -----
 
-SYSTEM_INSTRUCTION = (
-    "You are a JSON-only assistant. Output exactly one JSON object matching the schema provided. "
-    "Do not wrap in markdown or add extra text."
-)
-
-def create_prompt(traits: List[Dict]) -> str:
-    schema_example = {
-        "entry_type": "initial",
-        "interpreted_traits": ["trait1", "trait2"],
-        "recommendations": [
-            {"trait": "example_trait", "goal": "example_goal", "activity": "example_activity"}
-        ],
-        "summary": "A summary of the log entry.",
-        "followup_questions": ["Question 1?", "Question 2?"]
-    }
-    return (
-        f"{SYSTEM_INSTRUCTION}\n"
-        f"Based on these genotype-derived traits:\n{json.dumps(traits, indent=2)}\n"
-        f"Identify relevant phenotypes and recommendations, then output exactly one JSON matching this schema:\n"
-        f"{json.dumps(schema_example, indent=2)}"
-    )
-
-def strip_code_fences(text: str) -> str:
-    if text.startswith("```"):
-        newline_pos = text.find("\n")
-        if newline_pos != -1:
-            text = text[newline_pos+1:]
-        if text.rstrip().endswith("```"):
-            text = text.rstrip()[:-3]
-    return text.strip()
-
-
-def generate_log(
-    model_name: str = "gemini-2.0-flash",
-    traits: List[Dict] = None
-) -> Entry:
-    prompt = create_prompt(traits or [])
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
-    model = GenerativeModel(model_name)
-    response = model.generate_content([Part.from_text(prompt)])
-    cleaned = strip_code_fences(response.text)
-    try:
-        obj = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        print("❌ Invalid JSON after cleaning:", e)
-        print(cleaned)
-        raise
-    try:
-        return Entry(**obj)
-    except ValidationError as e:
-        print("❌ Schema validation failed:")
-        print(e.json())
-        raise
-
-
-def create_child_profile(sample_json_path: str) -> Tuple[ChildProfile, Entry]:
+async def create_child_profile(sample_json_path: str) -> Tuple[ChildProfile, Dict]:
     """
     High-level wrapper: given a sample JSON filepath,
     - loads trait reference and profile data
-    - creates and saves a ChildProfile
-    - generates (once) and saves the initial log
+    - creates and saves a ChildProfile using Firestore
+    - generates (once) and saves the initial log using agent.py
     - returns the ChildProfile and Entry objects
     """
-    from config import DATA_DIR, PROFILES_DIR
+    from config import DATA_DIR # PROFILES_DIR is no longer needed here if ChildProfile handles paths
+    from planner_agent.agent import LogGenerationService
 
     trait_csv = os.path.join(DATA_DIR, "Genotype_Trait_Reference.csv")
     trait_db = pd.read_csv(trait_csv)
@@ -191,26 +162,34 @@ def create_child_profile(sample_json_path: str) -> Tuple[ChildProfile, Entry]:
     with open(sample_json_path, "r") as f:
         profile_data = json.load(f)
 
+    # Initialize ChildProfile without data_root
     child = ChildProfile.create_from_report(
         profile_data,
         trait_db,
-        data_root=PROFILES_DIR
+        # data_root=PROFILES_DIR # Removed this
     )
 
-    traits_fp = os.path.join(PROFILES_DIR, profile_data['child_id'], "traits.json")
-    with open(traits_fp, "r") as f:
-        traits_data = json.load(f)
-
-    entry = generate_log(traits=traits_data)
-    child.save_log(entry.model_dump())
+    traits_data = child.load_traits()
+    
+    # Use the agent service to generate the initial log
+    log_service = LogGenerationService()
+    entry = await log_service.generate_initial_log(traits_data)
+    
+    # Pass the entry to child's save_log which now handles Firestore saving
+    child.save_log(entry)
 
     return child, entry
 
 
 if __name__ == "__main__":
+    import asyncio
     from config import DATA_DIR
-    default_json = os.path.join(DATA_DIR, "sample_upload.json")
-    child, entry = create_child_profile(default_json)
-    print(json.dumps(child.to_json(), indent=2))
-    print("✅ Initial log entry:")
-    print(entry.model_dump_json(indent=2))
+    
+    async def main():
+        default_json = os.path.join(DATA_DIR, "sample_upload.json")
+        child, entry = await create_child_profile(default_json)
+        print(json.dumps(child.to_json(), indent=2))
+        print("✅ Initial log entry:")
+        print(json.dumps(entry, indent=2))
+    
+    asyncio.run(main())
