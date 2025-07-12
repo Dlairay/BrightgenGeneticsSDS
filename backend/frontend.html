@@ -355,6 +355,7 @@
             </div>
             <div id="questionContainer"></div>
             <div id="questionError"></div>
+            <button class="btn btn-secondary" onclick="showDashboard()" style="margin-top: 20px;">Back to Dashboard</button>
         </div>
 
         <!-- Results Screen -->
@@ -369,6 +370,25 @@
             <h1>📚 Recommendations History</h1>
             <div id="historyContainer"></div>
             <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+
+        <!-- Emergency Check-in Screen -->
+        <div class="screen" id="emergencyScreen">
+            <h1 style="color: #ff6b6b;">🚨 Emergency Check-in</h1>
+            <div class="form-group">
+                <label for="emergencyDescription">What's wrong?</label>
+                <textarea id="emergencyDescription" placeholder="Please describe what's happening..." rows="4" style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; resize: vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="emergencyImage">Upload Image (Optional)</label>
+                <div class="file-upload" onclick="document.getElementById('emergencyImageFile').click()">
+                    <input type="file" id="emergencyImageFile" accept=".jpg,.jpeg,.png,.pdf" onchange="handleEmergencyImageSelect(event)">
+                    <p id="emergencyImageStatus">Click to upload image (JPEG, PNG, or PDF)</p>
+                </div>
+            </div>
+            <button class="btn" onclick="submitEmergencyCheckIn()" id="submitEmergencyBtn">Submit Emergency Report</button>
+            <button class="btn btn-secondary" onclick="showDashboard()">Cancel</button>
+            <div id="emergencyError"></div>
         </div>
     </div>
 
@@ -725,61 +745,113 @@
                 return;
             }
 
-            container.innerHTML = history.map(entry => `
+            container.innerHTML = history.map((entry, index) => `
                 <div class="recommendation-item">
-                    <p class="timestamp">${new Date(entry.timestamp).toLocaleDateString()} - ${entry.entry_type}</p>
-                    <h4>Summary</h4>
-                    <p>${entry.summary}</p>
-                    <h4>Recommendations</h4>
-                    ${entry.recommendations.map(rec => `
-                        <div style="margin: 10px 0; padding-left: 20px;">
-                            <p><strong>${rec.trait}</strong></p>
-                            <p>Goal: ${rec.goal}</p>
-                            <p>Activity: ${rec.activity}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #667eea;">Check-in #${history.length - index}</h3>
+                        <p class="timestamp">${new Date(entry.timestamp).toLocaleDateString()} - ${entry.entry_type}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #555; margin-bottom: 8px;">📝 Summary</h4>
+                        <p style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 0;">${entry.summary}</p>
+                    </div>
+                    
+                    ${entry.recommendations.length > 0 ? `
+                        <div>
+                            <h4 style="color: #555; margin-bottom: 10px;">💡 Recommendations (${entry.recommendations.length})</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                ${entry.recommendations.map((rec, recIndex) => `
+                                    <div style="margin-bottom: ${recIndex < entry.recommendations.length - 1 ? '15px' : '0'}; padding-bottom: ${recIndex < entry.recommendations.length - 1 ? '15px' : '0'}; ${recIndex < entry.recommendations.length - 1 ? 'border-bottom: 1px solid #e0e0e0;' : ''}">
+                                        <h5 style="color: #667eea; margin: 0 0 8px 0;">🎯 ${rec.trait}</h5>
+                                        <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+                                            <li style="margin-bottom: 4px;"><strong>Goal:</strong> ${rec.goal}</li>
+                                            <li><strong>Activity:</strong> ${rec.activity}</li>
+                                        </ul>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                    `).join('')}
+                    ` : `
+                        <p style="color: #999; font-style: italic;">No specific recommendations for this entry.</p>
+                    `}
                 </div>
             `).join('');
         }
 
         // Emergency Check-in
-        async function emergencyCheckIn(childId) {
-            if (!confirm('Start an emergency check-in? This will generate new recommendations immediately.')) {
+        function emergencyCheckIn(childId) {
+            currentChildId = childId;
+            document.getElementById('emergencyDescription').value = '';
+            document.getElementById('emergencyImageStatus').textContent = 'Click to upload image (JPEG, PNG, or PDF)';
+            selectedEmergencyImage = null;
+            showScreen('emergencyScreen');
+        }
+
+        // Handle emergency image selection
+        let selectedEmergencyImage = null;
+        function handleEmergencyImageSelect(event) {
+            selectedEmergencyImage = event.target.files[0];
+            if (selectedEmergencyImage) {
+                document.getElementById('emergencyImageStatus').textContent = `Selected: ${selectedEmergencyImage.name}`;
+            }
+        }
+
+        // Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Remove data:image/jpeg;base64, prefix
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Submit emergency check-in
+        async function submitEmergencyCheckIn() {
+            const description = document.getElementById('emergencyDescription').value.trim();
+            
+            if (!description) {
+                showError('emergencyError', 'Please describe what\'s wrong');
                 return;
             }
 
             try {
-                const response = await apiCall(`/children/${childId}/emergency-checkin`, {
-                    method: 'POST'
+                document.getElementById('submitEmergencyBtn').disabled = true;
+                document.getElementById('submitEmergencyBtn').textContent = 'Submitting...';
+
+                let imageBase64 = null;
+                if (selectedEmergencyImage) {
+                    imageBase64 = await fileToBase64(selectedEmergencyImage);
+                }
+
+                const response = await apiCall(`/children/${currentChildId}/emergency-checkin`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        description: description,
+                        image: imageBase64,
+                        image_type: selectedEmergencyImage ? selectedEmergencyImage.type : null
+                    })
                 });
 
                 // Display the emergency check-in results
                 const container = document.getElementById('recommendationsContainer');
                 container.innerHTML = `
                     <div style="margin-bottom: 20px;">
-                        <h3 style="color: #ff6b6b;">Emergency Check-in Results</h3>
-                        <p>${response.summary}</p>
+                        <h3 style="color: #ff6b6b;">Emergency Report Submitted</h3>
+                        <p>${response.summary || 'Your emergency report has been processed.'}</p>
                     </div>
-                    <div>
-                        <h3>Recommendations</h3>
-                        ${response.recommendations.map(rec => `
-                            <div class="recommendation">
-                                <h4>${rec.trait}</h4>
-                                <p><strong>Goal:</strong> ${rec.goal}</p>
-                                <p><strong>Activity:</strong> ${rec.activity}</p>
-                            </div>
-                        `).join('')}
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>Description:</strong> ${description}</p>
+                        ${selectedEmergencyImage ? `<p><strong>Image:</strong> ${selectedEmergencyImage.name} attached</p>` : ''}
                     </div>
-                    ${response.followup_questions && response.followup_questions.length > 0 ? `
-                        <div style="margin-top: 20px;">
-                            <h3>Follow-up Questions Available</h3>
-                            <p>Please check back later to answer follow-up questions.</p>
-                        </div>
-                    ` : ''}
                 `;
                 showScreen('resultsScreen');
             } catch (error) {
-                showError('uploadError', `Failed to complete emergency check-in: ${error.message}`);
+                showError('emergencyError', `Failed to submit emergency report: ${error.message}`);
+            } finally {
+                document.getElementById('submitEmergencyBtn').disabled = false;
+                document.getElementById('submitEmergencyBtn').textContent = 'Submit Emergency Report';
             }
         }
 

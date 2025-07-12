@@ -42,3 +42,9 @@ class RecommendationHistory(BaseModel):
     recommendations: List[Recommendation]
     summary: str
     entry_type: str
+
+
+class EmergencyCheckIn(BaseModel):
+    description: str
+    image: Optional[str] = None  # base64 encoded image
+    image_type: Optional[str] = None  # MIME type

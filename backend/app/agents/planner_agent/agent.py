@@ -20,11 +20,7 @@ warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
 load_dotenv()
 
-# Import from the refactored structure
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from app.models.child_profile import ChildProfile
-from app.repositories.trait_repository import TraitRepository 
+# These imports are only needed for the LogGenerationService class 
 
 # ─── Pydantic Schemas ─────────────────────────────────────────────────────────
 class Recommendation(BaseModel):
@@ -260,108 +256,4 @@ option_agent = Agent(
     )
 )
 
-# ─── Interactive Flow (Updated to use ChildProfile for I/O) ───────────────────────────
-async def handle_child_session(child_profile: ChildProfile): # Now takes ChildProfile object directly
-    """Handle interactive session for a child."""
-    log_service = LogGenerationService()
-    session_id = f"session_{child_profile.child_id}" # child_id is already a string
-    await log_service._ensure_session(session_id)
-    
-    # Load logs using ChildProfile's Firestore-enabled method
-    logs = child_profile.load_logs() 
-    if not logs:
-        print(f"No logs found for Child ID {child_profile.child_id}. Initial log might be needed. Exiting handle_child_session.")
-        return
-    
-    # Convert Firestore Timestamps to strings for the agent
-    logs_for_agent = _convert_firestore_timestamps_to_strings(logs)
-
-    latest = logs_for_agent[-1] 
-
-    # Load report to get birthday and gender
-    child_report = child_profile.load_report()
-    child_birthday_str = child_report.get("birthday") # Get birthday string
-    child_gender = child_report.get("gender")
-
-    # Derive age from birthday
-    child_age = None
-    if child_birthday_str:
-        try:
-            # Assuming birthday is in 'YYYY-MM-DD' format
-            birth_date = datetime.datetime.strptime(child_birthday_str, '%Y-%m-%d').date()
-            today = datetime.date.today()
-            child_age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
-        except ValueError:
-            print(f"Warning: Could not parse birthday '{child_birthday_str}'. Age will not be passed to agent.")
-
-
-    # Normalize follow-up questions to objects
-    raw_qs = latest.get('followup_questions', [])
-    questions: List[Dict[str, Union[str, List[str]]]] = []
-    for item in raw_qs:
-        if isinstance(item, str):
-            # legacy: convert to MCQ using option_agent
-            opts = await log_service._generate_question_options(
-                item, latest['interpreted_traits'], session_id
-            )
-            questions.append({"question": item, "options": opts})
-        else:
-            questions.append(item)
-
-    if not questions:
-        print("No follow-up questions from the latest log entry.")
-        return
-
-    print("Respond to each follow-up question:")
-    answers: Dict[str, str] = {}
-    for qobj in questions:
-        text = qobj['question']
-        opts = qobj['options']
-        print(f"\n{text}")
-        for i, opt in enumerate(opts, 1):
-            print(f"  {i}. {opt}")
-        choice = None
-        while choice not in range(1, len(opts) + 1):
-            try:
-                choice = int(input(f"Select 1–{len(opts)}: ").strip())
-            except ValueError:
-                continue
-        answers[text] = opts[choice - 1]
-
-    new_entry = await log_service._generate_followup_entry(
-        latest['interpreted_traits'],
-        answers,
-        session_id,
-        logs_for_agent, # Pass the converted logs as history to the agent
-        derived_age=child_age,     # Pass derived age to agent
-        gender=child_gender # Pass gender to agent
-    )
-    
-    # Use ChildProfile's Firestore-enabled save_log
-    child_profile.save_log(new_entry) 
-
-    print("New Recommendations:")
-    for rec in new_entry['recommendations']:
-        print(f"- {rec['trait']}: {rec['activity']}")
-
-# ─── Exported Functions ──────────────────────────────────────────────────────
-async def run_for_child(child_id: str): # Child ID is now explicitly a string
-    """Run interactive session for a child, creating a ChildProfile object."""
-    from config import DATA_DIR 
-    
-    # Load trait_db (this is needed for ChildProfile initialization)
-    trait_csv = os.path.join(DATA_DIR, "Genotype_Trait_Reference.csv")
-    
-    # Load trait_db from Firestore instead of CSV
-    trait_repo = TraitRepository()
-    trait_db = await trait_repo.load_trait_db() # Await this asynchronous call
-
-    if trait_db.empty:
-        raise RuntimeError("Trait reference data could not be loaded from Firestore. Cannot run child session.")
-
-    # Instantiate ChildProfile with the given child_id and trait_db
-    child_profile = ChildProfile(child_id=child_id, trait_db=trait_db)
-    
-    await handle_child_session(child_profile)
-
-__all__ = ["LogGenerationService", "run_for_child"]
+__all__ = ["LogGenerationService"]

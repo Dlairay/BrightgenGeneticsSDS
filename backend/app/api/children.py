@@ -4,7 +4,7 @@ import json
 
 from app.core.security import get_current_user
 from app.schemas.user import User
-from app.schemas.child import Child, CheckInAnswers, RecommendationHistory
+from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, EmergencyCheckIn
 from app.services.child_service import ChildService
 from app.repositories.child_repository import ChildRepository
 
@@ -112,13 +112,14 @@ async def get_recommendations_history(
 @router.post("/{child_id}/emergency-checkin")
 async def emergency_check_in(
     child_id: str,
+    emergency_data: EmergencyCheckIn,
     current_user: User = Depends(get_current_user)
 ):
     try:
         if not await child_repo.user_has_access_to_child(current_user.id, child_id):
             raise HTTPException(status_code=403, detail="Access denied to this child")
         
-        return await child_service.emergency_check_in(child_id)
+        return await child_service.emergency_check_in(child_id, emergency_data)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to complete emergency check-in: {str(e)}")
