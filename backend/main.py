@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.api import auth, children
+from app.middleware.api_key import APIKeyMiddleware
 
 app = FastAPI(title="Child Genetic Profiling API", version="2.0.0")
 
+app.add_middleware(APIKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

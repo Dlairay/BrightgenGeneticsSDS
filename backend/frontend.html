@@ -402,7 +402,7 @@
         let selectedFile = null;
 
         // API base URL - change this to your FastAPI server URL
-        const API_BASE = 'http://localhost:8000';
+        const API_BASE = 'https://child-profiling-api-i6jwwozhlq-uc.a.run.app';
 
         // Utility functions
         function showScreen(screenId) {
@@ -431,6 +431,7 @@
         async function apiCall(endpoint, options = {}) {
             const headers = {
                 'Content-Type': 'application/json',
+                'X-API-Key': 'YOUR_API_KEY_HERE', // Replace with your actual API key
                 ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
                 ...options.headers
             };
@@ -585,7 +586,8 @@
                 const response = await fetch(`${API_BASE}/children/upload-genetic-report`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-API-Key': 'YOUR_API_KEY_HERE' // Replace with your actual API key
                     },
                     body: formData
                 });
