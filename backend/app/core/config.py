@@ -7,7 +7,7 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
