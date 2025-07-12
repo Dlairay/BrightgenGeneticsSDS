@@ -6,11 +6,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code (servicekey.json is excluded by .dockerignore)
 COPY . .
 
-# Expose port
-EXPOSE 8000
+# Use Cloud Run's PORT environment variable
+ENV PORT=8080
+EXPOSE $PORT
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT

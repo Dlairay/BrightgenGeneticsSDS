@@ -11,10 +11,7 @@ __pycache__/
 .git/
 .gitignore
 frontend.html
-test.py
 *.md
-main_original.py
-childprofile_original.py
-migrate_to_refactored.py
-revert_migration.py
+REFACTORING_GUIDE.md
+.gcloudignore
 servicekey.json
