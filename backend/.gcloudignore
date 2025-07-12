@@ -1,0 +1,30 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# "#!include" directives (which insert the entries of the given .gitignore-style
+# file at that point).
+
+.gcloudignore
+.git
+.gitignore
+
+# Python pycache:
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+
+# Testing files
+test.py
+frontend.html
+
+# Backup files
+*_original.py
+migrate_to_refactored.py
+revert_migration.py
+
+# Sensitive files (should use Secret Manager in production)
+servicekey.json
+.env

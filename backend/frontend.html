@@ -103,6 +103,33 @@
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
+        .btn-emergency {
+            background: linear-gradient(135deg, #ff6b6b 0%, #f06595 100%);
+        }
+
+        .btn-emergency:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .recommendation-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .recommendation-item h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
         .btn:active {
             transform: translateY(0);
         }
@@ -336,6 +363,13 @@
             <div id="recommendationsContainer"></div>
             <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
         </div>
+
+        <!-- Recommendations History Screen -->
+        <div class="screen" id="historyScreen">
+            <h1>📚 Recommendations History</h1>
+            <div id="historyContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
     </div>
 
     <script>
@@ -500,6 +534,8 @@
                     <p><strong>Gender:</strong> ${child.gender}</p>
                     <p><strong>Birthday:</strong> ${child.birthday}</p>
                     <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
+                    <button class="btn btn-secondary" onclick="viewRecommendations('${child.id}')">View History</button>
+                    <button class="btn btn-emergency" onclick="emergencyCheckIn('${child.id}')">Emergency Check-in</button>
                 </div>
             `).join('');
         }
@@ -668,6 +704,83 @@
                     `).join('')}
                 </div>
             `;
+        }
+
+        // View Recommendations History
+        async function viewRecommendations(childId) {
+            try {
+                const history = await apiCall(`/children/${childId}/recommendations-history`);
+                displayRecommendationsHistory(history);
+                showScreen('historyScreen');
+            } catch (error) {
+                showError('uploadError', `Failed to load recommendations history: ${error.message}`);
+            }
+        }
+
+        function displayRecommendationsHistory(history) {
+            const container = document.getElementById('historyContainer');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No recommendations history yet.</p>';
+                return;
+            }
+
+            container.innerHTML = history.map(entry => `
+                <div class="recommendation-item">
+                    <p class="timestamp">${new Date(entry.timestamp).toLocaleDateString()} - ${entry.entry_type}</p>
+                    <h4>Summary</h4>
+                    <p>${entry.summary}</p>
+                    <h4>Recommendations</h4>
+                    ${entry.recommendations.map(rec => `
+                        <div style="margin: 10px 0; padding-left: 20px;">
+                            <p><strong>${rec.trait}</strong></p>
+                            <p>Goal: ${rec.goal}</p>
+                            <p>Activity: ${rec.activity}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        // Emergency Check-in
+        async function emergencyCheckIn(childId) {
+            if (!confirm('Start an emergency check-in? This will generate new recommendations immediately.')) {
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/children/${childId}/emergency-checkin`, {
+                    method: 'POST'
+                });
+
+                // Display the emergency check-in results
+                const container = document.getElementById('recommendationsContainer');
+                container.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #ff6b6b;">Emergency Check-in Results</h3>
+                        <p>${response.summary}</p>
+                    </div>
+                    <div>
+                        <h3>Recommendations</h3>
+                        ${response.recommendations.map(rec => `
+                            <div class="recommendation">
+                                <h4>${rec.trait}</h4>
+                                <p><strong>Goal:</strong> ${rec.goal}</p>
+                                <p><strong>Activity:</strong> ${rec.activity}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${response.followup_questions && response.followup_questions.length > 0 ? `
+                        <div style="margin-top: 20px;">
+                            <h3>Follow-up Questions Available</h3>
+                            <p>Please check back later to answer follow-up questions.</p>
+                        </div>
+                    ` : ''}
+                `;
+                showScreen('resultsScreen');
+            } catch (error) {
+                showError('uploadError', `Failed to complete emergency check-in: ${error.message}`);
+            }
         }
 
         // Initialize app
