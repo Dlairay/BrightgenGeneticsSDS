@@ -402,7 +402,7 @@
         let selectedFile = null;
 
         // API base URL - change this to your FastAPI server URL
-        const API_BASE = 'https://child-profiling-api-i6jwwozhlq-uc.a.run.app';
+        const API_BASE = 'http://localhost:8000';
 
         // Utility functions
         function showScreen(screenId) {
@@ -657,6 +657,16 @@
                     </div>
                 </div>
             `;
+            
+            // Restore previously selected answer if it exists
+            if (currentAnswers[currentQuestionIndex]) {
+                const selectedAnswer = currentAnswers[currentQuestionIndex].answer;
+                const selectedIndex = question.options.findIndex(opt => opt === selectedAnswer);
+                if (selectedIndex !== -1) {
+                    document.querySelector(`[data-option="${selectedIndex}"]`).classList.add('selected');
+                    document.getElementById('nextBtn').disabled = false;
+                }
+            }
         }
 
         function selectOption(optionIndex) {

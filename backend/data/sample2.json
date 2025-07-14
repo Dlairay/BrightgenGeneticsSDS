@@ -1,0 +1,10 @@
+{
+    "child_id": "child_2",
+    "birthday": "2018-03-15", 
+    "gender": "Female",       
+    "genotype_profile": [
+      { "rs_id": "rs6265", "genotype": "Val/Met" },
+      { "rs_id": "rs7997012", "genotype": "TT" },
+      { "rs_id": "rs53576", "genotype": "GG" }
+    ]
+  }

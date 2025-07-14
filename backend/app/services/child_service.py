@@ -90,10 +90,10 @@ class ChildService:
             }
             all_questions.append(emergency_question)
         
-        # Find most recent "checkin" type entry for regular questions (Flow 2)
+        # Find most recent "checkin" or "initial" type entry for regular questions (Flow 2)
         latest_checkin_log = None
         for log in reversed(logs):
-            if log.get('entry_type') == 'checkin':
+            if log.get('entry_type') in ['checkin', 'initial']:
                 latest_checkin_log = log
                 break
         
@@ -171,11 +171,24 @@ class ChildService:
         # Handle regular weekly check-in
         if regular_answers:
             # Find most recent checkin log for traits context
+            # If only initial log exists, use it; otherwise use the latest checkin log
             latest_checkin_log = None
-            for log in reversed(logs_for_agent):
-                if log.get('entry_type') == 'checkin':
-                    latest_checkin_log = log
-                    break
+            if len(logs_for_agent) == 1 and logs_for_agent[0].get('entry_type') == 'initial':
+                # Only initial log exists
+                latest_checkin_log = logs_for_agent[0]
+            else:
+                # Multiple logs exist, find the latest checkin (not initial)
+                for log in reversed(logs_for_agent):
+                    if log.get('entry_type') == 'checkin':
+                        latest_checkin_log = log
+                        break
+                
+                # If no checkin found but initial exists, use initial
+                if not latest_checkin_log:
+                    for log in reversed(logs_for_agent):
+                        if log.get('entry_type') == 'initial':
+                            latest_checkin_log = log
+                            break
             
             if not latest_checkin_log:
                 raise ValueError("No previous check-in found for regular questions")
