@@ -6,8 +6,9 @@ from typing import List, Dict, Optional
 from app.models.child_profile import ChildProfile
 from app.repositories.child_repository import ChildRepository, _convert_firestore_timestamps_to_strings
 from app.repositories.trait_repository import TraitRepository
-from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, EmergencyCheckIn
+from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, EmergencyCheckIn, GeneticReportData
 from app.agents.planner_agent.agent import LogGenerationService
+from app.services.genetic_report_parser import GeneticReportParser
 import pandas as pd
 import os
 
@@ -17,6 +18,7 @@ class ChildService:
         self.child_repo = ChildRepository()
         self.trait_repo = TraitRepository()
         self.log_service = LogGenerationService()
+        self.report_parser = GeneticReportParser()
     
     async def get_children_for_user(self, user_id: str) -> List[Child]:
         child_ids = await self.child_repo.get_children_for_user(user_id)
@@ -37,6 +39,26 @@ class ChildService:
     async def create_child_profile(self, genetic_data: Dict, child_name: str, user_id: str) -> Dict:
         genetic_data["name"] = child_name
         child_id = genetic_data["child_id"]
+        
+        # Check if child already exists for this user
+        existing_children = await self.child_repo.get_children_for_user(user_id)
+        if child_id in existing_children:
+            return {
+                "message": f"Child profile {child_id} already exists for this user",
+                "child_id": child_id,
+                "initial_log_created": False,
+                "error": "CHILD_ALREADY_EXISTS"
+            }
+        
+        # Check if child profile exists in database (might belong to another user)
+        existing_report = await self.child_repo.load_report(child_id)
+        if existing_report:
+            return {
+                "message": f"Child profile {child_id} already exists in the system",
+                "child_id": child_id,
+                "initial_log_created": False,
+                "error": "CHILD_ID_TAKEN"
+            }
         
         trait_db = await self.trait_repo.load_trait_db()
         if trait_db.empty:
@@ -286,3 +308,33 @@ class ChildService:
             "summary": emergency_summary,
             "emergency_id": child_id
         }
+    
+    async def create_child_profile_from_file(self, file_content: bytes, content_type: str, child_name: str, user_id: str) -> Dict:
+        """
+        Create child profile from either JSON or PDF file
+        
+        Args:
+            file_content: File content as bytes
+            content_type: MIME type of the file
+            child_name: Name of the child
+            user_id: User ID
+            
+        Returns:
+            Dictionary with result status
+        """
+        # Parse the file to extract genetic data
+        genetic_report_data = await self.report_parser.parse_json_or_pdf(file_content, content_type)
+        
+        # Convert to dictionary format expected by create_child_profile
+        genetic_data = {
+            "child_id": genetic_report_data.child_id,
+            "birthday": genetic_report_data.birthday,
+            "gender": genetic_report_data.gender,
+            "genotype_profile": [
+                {"rs_id": item["rs_id"], "genotype": item["genotype"]} 
+                for item in genetic_report_data.genotype_profile
+            ]
+        }
+        
+        # Use existing create_child_profile method
+        return await self.create_child_profile(genetic_data, child_name, user_id)

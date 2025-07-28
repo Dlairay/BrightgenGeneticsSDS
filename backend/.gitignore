@@ -3,3 +3,6 @@ __pycache__
 venv
 servicekey.json
 frontend_with_key.html
+frontend.html
+server.log
+test_pdf_parser.py

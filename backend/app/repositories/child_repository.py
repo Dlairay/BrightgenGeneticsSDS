@@ -76,16 +76,26 @@ class ChildRepository:
         return logs
     
     async def associate_child_with_user(self, user_id: str, child_id: str):
+        # Check if association already exists
+        existing_docs = self.user_children_collection.where("user_id", "==", user_id).where("child_id", "==", child_id).limit(1).get()
+        
+        if len(list(existing_docs)) > 0:
+            print(f"⚠️ Association between user {user_id} and child {child_id} already exists; skipping creation.")
+            return
+        
         user_child_doc = {
             "user_id": user_id,
             "child_id": child_id,
             "created_at": firestore.SERVER_TIMESTAMP
         }
         self.user_children_collection.add(user_child_doc)
+        print(f"✅ Successfully associated child {child_id} with user {user_id}.")
     
     async def get_children_for_user(self, user_id: str) -> List[str]:
         children_docs = self.user_children_collection.where("user_id", "==", user_id).get()
-        return [doc.to_dict()["child_id"] for doc in children_docs]
+        child_ids = [doc.to_dict()["child_id"] for doc in children_docs]
+        # Remove duplicates while preserving order
+        return list(dict.fromkeys(child_ids))
     
     async def user_has_access_to_child(self, user_id: str, child_id: str) -> bool:
         docs = self.user_children_collection.where("user_id", "==", user_id).where("child_id", "==", child_id).limit(1).get()

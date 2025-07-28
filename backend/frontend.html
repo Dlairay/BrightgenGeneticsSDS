@@ -67,7 +67,6 @@
             display: block;
             margin-bottom: 5px;
             color: #555;
-            font-weight: 500;
         }
 
         input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
@@ -284,7 +283,7 @@
     <div class="container">
         <!-- Login Screen -->
         <div class="screen active" id="loginScreen">
-            <h1>🧬 GeneKid</h1>
+            <h1>Bloomie🌸</h1>
             <h2>Welcome Back</h2>
             <div class="form-group">
                 <label for="loginEmail">Email</label>
@@ -336,10 +335,10 @@
                 <input type="text" id="childName" placeholder="Enter child's name">
             </div>
             <div class="form-group">
-                <label for="geneticReport">Genetic Report (JSON)</label>
+                <label for="geneticReport">Genetic Report (JSON or PDF)</label>
                 <div class="file-upload" onclick="document.getElementById('geneticFile').click()">
-                    <input type="file" id="geneticFile" accept=".json" onchange="handleFileSelect(event)">
-                    <p id="fileStatus">Click to upload genetic report JSON file</p>
+                    <input type="file" id="geneticFile" accept=".json,.pdf" onchange="handleFileSelect(event)">
+                    <p id="fileStatus">Click to upload genetic report (JSON or PDF)</p>
                 </div>
             </div>
             <button class="btn" onclick="uploadGeneticReport()" id="uploadBtn" disabled>Upload Report</button>
@@ -431,7 +430,7 @@
         async function apiCall(endpoint, options = {}) {
             const headers = {
                 'Content-Type': 'application/json',
-                'X-API-Key': 'YOUR_API_KEY_HERE', // Replace with your actual API key
+                'X-API-Key': 'secure-api-key-2025', // Replace with your actual API key
                 ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
                 ...options.headers
             };
@@ -587,7 +586,7 @@
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${authToken}`,
-                        'X-API-Key': 'YOUR_API_KEY_HERE' // Replace with your actual API key
+                        'X-API-Key': 'secure-api-key-2025' // Replace with your actual API key
                     },
                     body: formData
                 });

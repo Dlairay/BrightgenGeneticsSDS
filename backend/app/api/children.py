@@ -28,20 +28,38 @@ async def upload_genetic_report(
     current_user: User = Depends(get_current_user)
 ):
     try:
+        # Check file type
+        content_type = file.content_type
+        if content_type not in ["application/json", "application/pdf"]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type: {content_type}. Please upload JSON or PDF file."
+            )
+        
+        # Read file content
         content = await file.read()
-        genetic_data = json.loads(content.decode('utf-8'))
         
-        required_fields = ["child_id", "birthday", "gender", "genotype_profile"]
-        for field in required_fields:
-            if field not in genetic_data:
-                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        # Process file based on type
+        result = await child_service.create_child_profile_from_file(
+            content, content_type, child_name, current_user.id
+        )
         
-        return await child_service.create_child_profile(genetic_data, child_name, current_user.id)
+        if result.get("error") == "CHILD_ALREADY_EXISTS":
+            raise HTTPException(status_code=409, detail=result["message"])
+        elif result.get("error") == "CHILD_ID_TAKEN":
+            raise HTTPException(status_code=409, detail=result["message"])
+            
+        return result
         
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process genetic report: {str(e)}")
+        if "Invalid JSON format" in str(e):
+            raise HTTPException(status_code=400, detail="Invalid JSON file format")
+        elif "No data extracted" in str(e):
+            raise HTTPException(status_code=400, detail="Could not extract genetic data from PDF")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to process genetic report: {str(e)}")
 
 
 @router.get("/{child_id}/check-in/questions")

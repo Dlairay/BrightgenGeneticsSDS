@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     data_dir: str = os.path.join(base_dir, "data")
     
     google_application_credentials: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    gcp_project_id: Optional[str] = os.getenv("GCP_PROJECT_ID")
     
     class Config:
         env_file = ".env"
