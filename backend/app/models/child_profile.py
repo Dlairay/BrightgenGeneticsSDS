@@ -37,15 +37,21 @@ class ChildProfile:
     
     def match_traits(self) -> List[Dict]:
         matched = []
-        for entry in self.report.get("genotype_profile", []):
+        genotype_profile = self.report.get("genotype_profile", [])
+        
+        for entry in genotype_profile:
             rs = entry.get("rs_id")
             genotype = entry.get("genotype")
+            
             rows = self.trait_db[
                 (self.trait_db["rs_id"] == rs) &
                 (self.trait_db["genotype"] == genotype)
             ]
-            for _, row in rows.iterrows():
-                matched.append(row.to_dict())
+            
+            if not rows.empty:
+                for _, row in rows.iterrows():
+                    matched.append(row.to_dict())
+        
         return matched
     
     def get_derived_age(self) -> Union[int, None]:

@@ -44,7 +44,12 @@ class RecommendationHistory(BaseModel):
     entry_type: str
 
 
-class EmergencyCheckIn(BaseModel):
-    description: str
+class DrBloomSessionStart(BaseModel):
+    initial_concern: str
     image: Optional[str] = None  # base64 encoded image
     image_type: Optional[str] = None  # MIME type
+
+
+class DrBloomSessionComplete(BaseModel):
+    session_id: str
+    child_id: str

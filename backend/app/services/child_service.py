@@ -6,9 +6,10 @@ from typing import List, Dict, Optional
 from app.models.child_profile import ChildProfile
 from app.repositories.child_repository import ChildRepository, _convert_firestore_timestamps_to_strings
 from app.repositories.trait_repository import TraitRepository
-from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, EmergencyCheckIn, GeneticReportData
+from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, DrBloomSessionStart, DrBloomSessionComplete, GeneticReportData
 from app.agents.planner_agent.agent import LogGenerationService
 from app.services.genetic_report_parser import GeneticReportParser
+from app.services.chatbot_service import ChatbotService
 import pandas as pd
 import os
 
@@ -18,6 +19,7 @@ class ChildService:
         self.child_repo = ChildRepository()
         self.trait_repo = TraitRepository()
         self.log_service = LogGenerationService()
+        self.chatbot_service = ChatbotService()
         self.report_parser = GeneticReportParser()
     
     async def get_children_for_user(self, user_id: str) -> List[Child]:
@@ -102,15 +104,15 @@ class ChildService:
         
         all_questions = []
         
-        # Check if most recent log is an emergency (Flow 1)
+        # Check if most recent log is a Dr. Bloom consultation (Flow 1)
         latest_log = logs[-1]
-        if latest_log.get('entry_type') == 'emergency':
-            emergency_question = {
-                "question": f"Follow-up on emergency: Has the situation from your last emergency report improved?",
+        if latest_log.get('entry_type') == 'dr_bloom':
+            dr_bloom_question = {
+                "question": f"Follow-up on Dr. Bloom consultation: Has the situation you discussed with Dr. Bloom improved?",
                 "options": ["Yes, it's much better now", "Somewhat better", "No change", "It's gotten worse"],
-                "is_emergency_followup": True
+                "is_dr_bloom_followup": True
             }
-            all_questions.append(emergency_question)
+            all_questions.append(dr_bloom_question)
         
         # Find most recent "checkin" or "initial" type entry for regular questions (Flow 2)
         latest_checkin_log = None
@@ -155,40 +157,46 @@ class ChildService:
         
         logs_for_agent = _convert_firestore_timestamps_to_strings(logs)
         
-        # Separate emergency follow-up from regular answers
-        emergency_answers = []
+        # Separate Dr. Bloom follow-up from regular answers
+        dr_bloom_answers = []
         regular_answers = []
         
         for answer in answers.answers:
-            # Check if this is an emergency follow-up question
-            if "Follow-up on emergency" in answer.question:
-                emergency_answers.append(answer)
+            # Check if this is a Dr. Bloom follow-up question
+            if "Follow-up on Dr. Bloom consultation" in answer.question:
+                dr_bloom_answers.append(answer)
             else:
                 regular_answers.append(answer)
         
-        # Handle emergency follow-up if present
-        if emergency_answers:
-            emergency_answer = emergency_answers[0].answer
-            latest_emergency_log = logs_for_agent[-1]  # Most recent should be emergency
+        # Handle Dr. Bloom follow-up if present
+        if dr_bloom_answers:
+            dr_bloom_answer = dr_bloom_answers[0].answer
+            latest_dr_bloom_log = logs_for_agent[-1]  # Most recent should be dr_bloom
             
-            if emergency_answer in ["Yes, it's much better now", "Somewhat better"]:
-                # Mark emergency as resolved
+            if dr_bloom_answer in ["Yes, it's much better now", "Somewhat better"]:
+                # Mark Dr. Bloom consultation as resolved
                 resolved_entry = {
-                    'entry_type': 'emergency_resolved',
+                    'entry_type': 'dr_bloom_resolved',
                     'interpreted_traits': [],
                     'recommendations': [],
-                    'summary': f"Emergency follow-up: {emergency_answer}. Emergency situation resolved.",
+                    'summary': f"Dr. Bloom follow-up: {dr_bloom_answer}. Consultation issue resolved.",
                     'followup_questions': [],
-                    'resolved_emergency_id': latest_emergency_log.get('emergency_description', 'Unknown emergency')
+                    'resolved_consultation_id': latest_dr_bloom_log.get('dr_bloom_session_id', 'Unknown consultation')
                 }
                 await self.child_repo.save_log(child_id, resolved_entry)
             
-            elif emergency_answer in ["No change", "It's gotten worse"]:
-                # Trigger new emergency check-in
-                emergency_data = EmergencyCheckIn(
-                    description=f"Follow-up: {emergency_answer}. Original issue: {latest_emergency_log.get('emergency_description', 'Previous emergency situation')}"
-                )
-                await self.emergency_check_in(child_id, emergency_data)
+            elif dr_bloom_answer in ["No change", "It's gotten worse"]:
+                # Note: In this case, the parent might want to start another Dr. Bloom session
+                # For now, we'll just log the status. The frontend can prompt for another consultation.
+                followup_entry = {
+                    'entry_type': 'dr_bloom_followup',
+                    'interpreted_traits': [],
+                    'recommendations': [],
+                    'summary': f"Dr. Bloom follow-up: {dr_bloom_answer}. May need additional consultation.",
+                    'followup_questions': [],
+                    'previous_consultation_id': latest_dr_bloom_log.get('dr_bloom_session_id', 'Unknown consultation')
+                }
+                await self.child_repo.save_log(child_id, followup_entry)
         
         # Handle regular weekly check-in
         if regular_answers:
@@ -242,14 +250,14 @@ class ChildService:
                 "message": "Check-in completed successfully",
                 "recommendations": new_entry.get('recommendations', []),
                 "summary": new_entry.get('summary', ''),
-                "emergency_handled": len(emergency_answers) > 0
+                "emergency_handled": len(dr_bloom_answers) > 0
             }
         
         return {
-            "message": "Emergency follow-up completed",
+            "message": "Dr. Bloom follow-up completed",
             "recommendations": [],
-            "summary": "Emergency situation has been addressed.",
-            "emergency_handled": True
+            "summary": "Dr. Bloom follow-up has been addressed.",
+            "emergency_handled": len(dr_bloom_answers) > 0
         }
     
     async def get_child_profile(self, child_id: str) -> Dict:
@@ -270,43 +278,93 @@ class ChildService:
         
         return history
     
-    async def emergency_check_in(self, child_id: str, emergency_data: EmergencyCheckIn) -> Dict:
-        # Get child info for context
-        report_data = await self.child_repo.load_report(child_id)
-        child_profile = ChildProfile(child_id, pd.DataFrame())  # We don't need traits for emergency
-        child_profile.report = report_data
+    async def start_dr_bloom_session(self, user_id: str, child_id: str, session_data: DrBloomSessionStart) -> Dict:
+        """Start a Dr. Bloom consultation session."""
+        # Chatbot service is already initialized
         
-        derived_age = child_profile.get_derived_age()
-        gender = report_data.get("gender", "unknown")
-        child_name = report_data.get("name", "Child")
+        # Create a Dr. Bloom conversation (will be deleted after completion)
+        conversation = await self.chatbot_service.create_conversation(
+            user_id=user_id,
+            child_id=child_id,
+            is_temporary=True  # This marks it as a Dr. Bloom session
+        )
         
-        # Use existing agent infrastructure for analysis
-        session_id = f"emergency_{child_id}"
-        await self.log_service._ensure_session(session_id)
-        
-        # Create a simple emergency summary without using external APIs
-        emergency_summary = f"Emergency report received for {child_name} (age {derived_age}): {emergency_data.description}"
-        if emergency_data.image:
-            emergency_summary += " [Image attached]"
-        
-        # Create emergency log entry
-        emergency_entry = {
-            'entry_type': 'emergency',
-            'interpreted_traits': [],  # Empty for emergency
-            'recommendations': [],     # Empty as requested
-            'summary': emergency_summary,
-            'followup_questions': [],  # Empty for emergency
-            'emergency_description': emergency_data.description,
-            'has_image': emergency_data.image is not None,
-            'image_type': emergency_data.image_type if emergency_data.image else None
-        }
-        
-        await self.child_repo.save_log(child_id, emergency_entry)
+        # Send the initial message with image if provided
+        initial_response = await self.chatbot_service.send_message(
+            user_id=user_id,
+            session_id=conversation["session_id"],
+            message=session_data.initial_concern,
+            agent_type="dr_bloom",
+            image=session_data.image,
+            image_type=session_data.image_type
+        )
         
         return {
-            "message": "Emergency report submitted successfully",
-            "summary": emergency_summary,
-            "emergency_id": child_id
+            "session_id": conversation["session_id"],
+            "conversation_id": conversation["id"],
+            "initial_response": initial_response["agent_response"],
+            "message": "Dr. Bloom session started successfully"
+        }
+    
+    async def complete_dr_bloom_session(self, user_id: str, child_id: str, complete_data: DrBloomSessionComplete) -> Dict:
+        """Complete a Dr. Bloom session and create a log entry."""
+        print(f"Starting Dr. Bloom completion - user: {user_id}, child: {child_id}, session: {complete_data.session_id}")
+        # Chatbot service is already initialized
+        
+        # Get child info for context
+        report_data = await self.child_repo.load_report(child_id)
+        child_profile = ChildProfile(child_id, pd.DataFrame())
+        child_profile.report = report_data
+        
+        child_name = report_data.get("name", "Child")
+        
+        # Get structured log data from Dr. Bloom conversation BEFORE deleting
+        print("Getting structured log data...")
+        try:
+            log_data = await self.chatbot_service.generate_structured_log(
+                session_id=complete_data.session_id,
+                user_id=user_id,
+                child_id=child_id
+            )
+            print(f"Log data generated: {log_data}")
+        except Exception as e:
+            print(f"Error generating log data: {e}")
+            raise
+        
+        # Delete the conversation and all its messages immediately after getting data
+        print("Deleting conversation...")
+        try:
+            await self.chatbot_service.delete_conversation_completely(
+                session_id=complete_data.session_id,
+                user_id=user_id
+            )
+            print("Conversation deleted successfully")
+        except Exception as e:
+            print(f"Error deleting conversation: {e}")
+            # Continue anyway - we still want to save the log
+        # Create log entry matching your exact structure
+        dr_bloom_entry = {
+            'entry_type': 'dr_bloom',  # Add this to your accepted entry types
+            'interpreted_traits': log_data.get('interpreted_traits', []),
+            'recommendations': log_data.get('recommendations', []),
+            'summary': log_data.get('summary', ''),
+            'followup_questions': log_data.get('followup_questions', [])
+        }
+        
+        print(f"Saving log entry: {dr_bloom_entry}")
+        try:
+            await self.child_repo.save_log(child_id, dr_bloom_entry)
+            print("Log entry saved successfully")
+        except Exception as e:
+            print(f"Error saving log entry: {e}")
+            raise
+        
+        print("Dr. Bloom completion finished successfully")
+        return {
+            "message": "Dr. Bloom consultation completed and logged",
+            "summary": log_data.get('summary', 'Consultation completed'),
+            "log_created": True,
+            "conversation_deleted": True
         }
     
     async def create_child_profile_from_file(self, file_content: bytes, content_type: str, child_name: str, user_id: str) -> Dict:

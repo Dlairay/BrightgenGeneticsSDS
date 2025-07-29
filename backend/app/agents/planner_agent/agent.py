@@ -223,7 +223,7 @@ Receive a JSON payload with keys:
 Your output must be exactly one JSON object matching this schema (no markdown or fences):
 
 {
-  "entry_type": "initial" | "checkin" | "emergency",
+  "entry_type": "initial" | "checkin" | "dr_bloom",
   "interpreted_traits": [string, …],
   "recommendations": [
     { "trait": string, "goal": string, "activity": string }, …

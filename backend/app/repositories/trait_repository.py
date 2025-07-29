@@ -26,3 +26,10 @@ class TraitRepository:
         self._cached_df = pd.DataFrame(data)
         print(f"✅ Loaded {len(self._cached_df)} trait references from Firestore.")
         return self._cached_df
+    
+    async def get(self, trait_id: str) -> Optional[dict]:
+        """Get a single trait by ID."""
+        doc = self.collection.document(trait_id).get()
+        if doc.exists:
+            return doc.to_dict()
+        return None

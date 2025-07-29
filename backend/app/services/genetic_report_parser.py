@@ -1,8 +1,8 @@
 import json
 import logging
-import base64
 from google import genai
 from app.schemas.child import GeneticReportData
+from app.core.utils import encode_image_to_base64, decode_base64_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,8 @@ class GeneticReportParser:
         """
         try:
             # Convert PDF to base64 first, then decode back to bytes (matching your example)
-            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
-            pdf_bytes = base64.b64decode(pdf_base64)
+            pdf_base64 = encode_image_to_base64(pdf_content)
+            pdf_bytes = decode_base64_to_bytes(pdf_base64)
             
             # Create the prompt for extraction
             extraction_prompt = """Extract the following information from the provided PDF document and return it as a JSON object.

@@ -4,7 +4,7 @@ import json
 
 from app.core.security import get_current_user
 from app.schemas.user import User
-from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, EmergencyCheckIn
+from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, DrBloomSessionStart, DrBloomSessionComplete
 from app.services.child_service import ChildService
 from app.repositories.child_repository import ChildRepository
 
@@ -127,17 +127,35 @@ async def get_recommendations_history(
         raise HTTPException(status_code=500, detail=f"Failed to get recommendations history: {str(e)}")
 
 
-@router.post("/{child_id}/emergency-checkin")
-async def emergency_check_in(
+@router.post("/{child_id}/dr-bloom/start")
+async def start_dr_bloom_session(
     child_id: str,
-    emergency_data: EmergencyCheckIn,
+    session_data: DrBloomSessionStart,
     current_user: User = Depends(get_current_user)
 ):
+    """Start a Dr. Bloom consultation session."""
     try:
         if not await child_repo.user_has_access_to_child(current_user.id, child_id):
             raise HTTPException(status_code=403, detail="Access denied to this child")
         
-        return await child_service.emergency_check_in(child_id, emergency_data)
+        return await child_service.start_dr_bloom_session(current_user.id, child_id, session_data)
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to complete emergency check-in: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start Dr. Bloom session: {str(e)}")
+
+
+@router.post("/{child_id}/dr-bloom/complete")
+async def complete_dr_bloom_session(
+    child_id: str,
+    complete_data: DrBloomSessionComplete,
+    current_user: User = Depends(get_current_user)
+):
+    """Complete a Dr. Bloom session and generate log entry."""
+    try:
+        if not await child_repo.user_has_access_to_child(current_user.id, child_id):
+            raise HTTPException(status_code=403, detail="Access denied to this child")
+        
+        return await child_service.complete_dr_bloom_session(current_user.id, child_id, complete_data)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to complete Dr. Bloom session: {str(e)}")

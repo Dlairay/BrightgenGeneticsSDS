@@ -15,3 +15,7 @@ frontend.html
 REFACTORING_GUIDE.md
 .gcloudignore
 servicekey.json
+test_*.py
+*_test.py
+data/
+server.log
