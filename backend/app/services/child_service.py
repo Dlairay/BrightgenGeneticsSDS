@@ -396,3 +396,35 @@ class ChildService:
         
         # Use existing create_child_profile method
         return await self.create_child_profile(genetic_data, child_name, user_id)
+    
+    async def get_child_traits_mapped(self, child_id: str) -> List[Dict]:
+        """
+        Get child traits with mapped keys for display.
+        Maps trait fields to: confidence, description, gene, trait_name
+        Converts confidence from float (0-1) to percentage string
+        """
+        traits = await self.child_repo.load_traits(child_id)
+        
+        # Debug: Log the structure of the first trait
+        if traits:
+            print(f"DEBUG: First trait structure: {traits[0]}")
+            print(f"DEBUG: Trait keys: {list(traits[0].keys()) if traits else 'No traits'}")
+        
+        mapped_traits = []
+        for trait in traits:
+            # Convert confidence from float to percentage
+            confidence_value = trait.get("confidence", 0)
+            if isinstance(confidence_value, (int, float)):
+                confidence_percentage = f"{int(confidence_value * 100)}%"
+            else:
+                confidence_percentage = "0%"
+            
+            mapped_trait = {
+                "confidence": confidence_percentage,
+                "description": trait.get("description", ""),
+                "gene": trait.get("gene", ""),
+                "trait_name": trait.get("trait_name", "")
+            }
+            mapped_traits.append(mapped_trait)
+        
+        return mapped_traits

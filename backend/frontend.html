@@ -394,7 +394,7 @@
 
         <!-- Register Screen -->
         <div class="screen" id="registerScreen">
-            <h1>🧬 GeneKid</h1>
+            <h1>Bloomie🌸</h1>
             <h2>Create Account</h2>
             <div class="form-group">
                 <label for="registerName">Full Name</label>
@@ -465,6 +465,13 @@
             <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
         </div>
 
+        <!-- Traits Display Screen -->
+        <div class="screen" id="traitsScreen">
+            <h1>Genetic Traits Report</h1>
+            <div id="traitsContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+
         <!-- Dr. Bloom Chat Screen -->
         <div class="screen" id="drBloomScreen">
             <h1 style="color: #4CAF50;">💬 Dr. Bloom Consultation</h1>
@@ -507,6 +514,7 @@
 
         // API base URL - change this to your FastAPI server URL
         const API_BASE = 'http://localhost:8000';
+        // const API_BASE = 'https://child-profiling-api-271271835247.us-central1.run.app';
 
         // Utility functions
         function showScreen(screenId) {
@@ -660,6 +668,7 @@
                     <p><strong>Birthday:</strong> ${child.birthday}</p>
                     <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
                     <button class="btn btn-secondary" onclick="viewRecommendations('${child.id}')">View History</button>
+                    <button class="btn btn-secondary" onclick="viewTraits('${child.id}')">View Traits</button>
                     <button class="btn btn-dr-bloom" onclick="openDrBloomConsultation('${child.id}')">Consult Dr. Bloom</button>
                 </div>
             `).join('');
@@ -704,9 +713,16 @@
                 const result = await response.json();
                 showSuccess('uploadError', 'Genetic report uploaded successfully!');
                 
-                setTimeout(() => {
-                    loadDashboard();
-                }, 2000);
+                // Display traits if available
+                if (result.traits && result.traits.length > 0) {
+                    setTimeout(() => {
+                        displayTraits(result.traits, result.child_id);
+                    }, 1000);
+                } else {
+                    setTimeout(() => {
+                        loadDashboard();
+                    }, 2000);
+                }
             } catch (error) {
                 showError('uploadError', error.message);
             }
@@ -851,6 +867,40 @@
             } catch (error) {
                 showError('uploadError', `Failed to load recommendations history: ${error.message}`);
             }
+        }
+
+        async function viewTraits(childId) {
+            try {
+                const traits = await apiCall(`/children/${childId}/traits`);
+                displayTraits(traits, childId);
+            } catch (error) {
+                showError('uploadError', `Failed to load traits: ${error.message}`);
+            }
+        }
+
+        function displayTraits(traits, childId) {
+            const container = document.getElementById('traitsContainer');
+            
+            if (!traits || traits.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No genetic traits found.</p>';
+                showScreen('traitsScreen');
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="traits-list">
+                    ${traits.map(trait => `
+                        <div class="trait-card" style="background: #f8f9fa; border: 1px solid #e1e5e9; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+                            <h3 style="color: #667eea; margin-bottom: 10px;">${trait.trait_name}</h3>
+                            <p style="margin-bottom: 8px;"><strong>Gene:</strong> ${trait.gene}</p>
+                            <p style="margin-bottom: 8px;"><strong>Confidence:</strong> <span style="color: #4CAF50; font-weight: bold;">${trait.confidence}</span></p>
+                            <p style="margin-bottom: 0;"><strong>Description:</strong> ${trait.description}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            showScreen('traitsScreen');
         }
 
         function displayRecommendationsHistory(history) {

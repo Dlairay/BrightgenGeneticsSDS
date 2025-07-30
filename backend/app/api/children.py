@@ -48,6 +48,12 @@ async def upload_genetic_report(
             raise HTTPException(status_code=409, detail=result["message"])
         elif result.get("error") == "CHILD_ID_TAKEN":
             raise HTTPException(status_code=409, detail=result["message"])
+        
+        # If profile was created successfully, fetch the mapped traits
+        if result.get("child_id") and not result.get("error"):
+            child_id = result["child_id"]
+            mapped_traits = await child_service.get_child_traits_mapped(child_id)
+            result["traits"] = mapped_traits
             
         return result
         
@@ -125,6 +131,25 @@ async def get_recommendations_history(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get recommendations history: {str(e)}")
+
+
+@router.get("/{child_id}/traits")
+async def get_child_traits(
+    child_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get child's genetic traits with mapped keys for display.
+    Returns traits with keys: confidence, description, gene, trait_name
+    """
+    try:
+        if not await child_repo.user_has_access_to_child(current_user.id, child_id):
+            raise HTTPException(status_code=403, detail="Access denied to this child")
+        
+        return await child_service.get_child_traits_mapped(child_id)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get child traits: {str(e)}")
 
 
 @router.post("/{child_id}/dr-bloom/start")
