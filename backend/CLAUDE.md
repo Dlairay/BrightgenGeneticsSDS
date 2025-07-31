@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Running the Application
 ```bash
-# Start the FastAPI server
+# Start the FastAPI server locally
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -17,6 +17,18 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
+
+### Deployment
+```bash
+# Deploy to Google Cloud Run (see DEPLOYMENT.md for full instructions)
+gcloud run deploy child-profiling-api \
+  --source . \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars "JWT_SECRET_KEY=my-very-secret-key,API_KEY=secure-api-key-2025,GOOGLE_CLOUD_PROJECT=arboreal-totem-455008-d4,GOOGLE_CLOUD_LOCATION=us-central1,GOOGLE_GENAI_USE_VERTEXAI=true" \
+  --memory 1Gi
 ```
 
 ## Architecture Overview
@@ -40,6 +52,7 @@ app/
 1. **API Layer** (`app/api/`):
    - `auth.py` - Authentication endpoints
    - `children.py` - Child management, check-ins, emergency reports
+   - `chatbot.py` - Dr. Bloom chatbot endpoints
 
 2. **Service Layer** (`app/services/`):
    - `auth_service.py` - Authentication business logic
@@ -55,13 +68,17 @@ app/
    - `security.py` - JWT authentication
    - `database.py` - Firestore client
 
-5. **AI Agents** (`app/agents/planner_agent/`):
+5. **Middleware** (`app/middleware/`):
+   - `api_key.py` - API key authentication middleware
+
+6. **AI Agents** (`app/agents/planner_agent/`):
    - `agent.py` - LogGenerationService for recommendations
 
 ### Key Features
 
 - **Weekly Check-ins**: Smart logic handling emergency follow-ups
 - **Emergency Check-ins**: Image upload with base64 conversion
+- **Dr. Bloom Chatbot**: AI-powered pediatric consultation with image support
 - **Recommendations History**: Chronological view of past advice
 - **Genetic Profiling**: Upload and analysis of genetic reports
 
@@ -75,7 +92,18 @@ app/
 
 ### Environment Configuration
 
-Requires:
+#### Local Development:
 - `servicekey.json` - Google Cloud service account credentials
 - Environment variables for JWT and Google APIs
 - Properly configured Google Cloud project with Firestore enabled
+
+#### Production (Cloud Run):
+- **Service URL**: https://child-profiling-api-271271835247.us-central1.run.app
+- **API Key**: secure-api-key-2025 (required in X-API-Key header)
+- **Environment Variables**: JWT_SECRET_KEY, API_KEY, GOOGLE_CLOUD_PROJECT, etc.
+
+### Authentication & Security
+
+- **API Key Middleware**: All endpoints (except /health) require X-API-Key header
+- **JWT Authentication**: User sessions managed with JWT tokens
+- **CORS**: Configured to allow all origins for development
