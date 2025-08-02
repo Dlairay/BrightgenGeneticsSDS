@@ -414,7 +414,6 @@ class _GeneticsSummaryPageState extends State<GeneticsSummaryPage> {
   }
 
   Widget _buildSubItem(String traitTitle, SubItem subItem) {
-    String key = '${traitTitle}_${subItem.title}';
     bool isExpanded = expandedSubItems[traitTitle]?[subItem.title] ?? false;
     
     return Container(

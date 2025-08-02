@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../homepage_a_q.dart';
+import '../core/utils/logger.dart';
 
 class Question5TextInput extends StatefulWidget {
   const Question5TextInput({super.key});
@@ -14,7 +15,7 @@ class _Question5TextInputState extends State<Question5TextInput> {
   void _onFinishPressed() {
     String response = _controller.text;
     // You can handle form submission here (save, send, navigate, etc.)
-    print("User input: $response");
+    AppLogger.info('User input: $response');
     
     // Navigate to updated homepage_a_q.dart
     Navigator.pushReplacement(

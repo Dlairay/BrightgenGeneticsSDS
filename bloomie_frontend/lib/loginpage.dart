@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bloomie_frontend/signuppage.dart';
 import 'main.dart';
+import 'core/utils/logger.dart';
 
 void main() {
   runApp(const FigmaToCodeApp());
@@ -18,6 +19,7 @@ class FigmaToCodeApp extends StatelessWidget {
 }
 
 class LoginFlowPage extends StatefulWidget {
+  const LoginFlowPage({super.key});
   @override
   _LoginFlowPageState createState() => _LoginFlowPageState();
 }
@@ -83,7 +85,7 @@ class _LoginFlowPageState extends State<LoginFlowPage> {
         ),
         child: Center(
           child: SafeArea(
-            child: Container(
+            child: SizedBox(
               width: 280,
               height: 660,
               child: Column(
@@ -161,7 +163,7 @@ class _LoginFlowPageState extends State<LoginFlowPage> {
         child: GestureDetector(
           onTap: () {
             // Navigate to forgot password
-            print("Navigate to forgot password");
+            AppLogger.info('Navigate to forgot password');
           },
           child: const Text(
             'Forgot password?',
@@ -340,7 +342,7 @@ class _LoginFlowPageState extends State<LoginFlowPage> {
       GestureDetector(
         onTap: () {
           // Handle no access to registered number
-          print("Handle no access to registered number");
+          AppLogger.info('Handle no access to registered number');
         },
         child: const Text(
           'No more access to registered number?',

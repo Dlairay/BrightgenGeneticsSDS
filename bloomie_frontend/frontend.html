@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Child Genetic Profiling - Test App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 400;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-dr-bloom {
+            background: linear-gradient(135deg, #ff6b6b 0%, #f06595 100%);
+        }
+
+        .btn-dr-bloom:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .recommendation-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .recommendation-item h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8a8a8 0%, #8c8c8c 100%);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(168, 168, 168, 0.3);
+        }
+
+        .child-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            text-align: left;
+        }
+
+        .child-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .child-card p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .question-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .option {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e1e5e9;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .recommendation {
+            background: #e8f5e8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            text-align: left;
+        }
+
+        .recommendation h4 {
+            color: #155724;
+            margin-bottom: 5px;
+        }
+
+        .recommendation p {
+            color: #155724;
+            margin: 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            background: #f0f4ff;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        /* Chat Interface Styles */
+        .chat-message {
+            margin-bottom: 15px;
+            max-width: 80%;
+        }
+
+        .chat-message.user {
+            margin-left: auto;
+            background: #667eea;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 18px 18px 4px 18px;
+            text-align: right;
+        }
+
+        .chat-message.dr-bloom {
+            margin-right: auto;
+            background: white;
+            border: 2px solid #e1e5e9;
+            padding: 12px 16px;
+            border-radius: 18px 18px 18px 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chat-message.dr-bloom .sender {
+            font-weight: bold;
+            color: #4CAF50;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .chat-message .timestamp {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .chat-message .image-attachment {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .typing-indicator {
+            background: white;
+            border: 2px solid #e1e5e9;
+            padding: 12px 16px;
+            border-radius: 18px 18px 18px 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            max-width: 80%;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            margin: 0 2px;
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        #chatContainer::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chatContainer::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        #chatContainer::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        #chatContainer::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div class="screen active" id="loginScreen">
+            <h1>Bloomie🌸</h1>
+            <h2>Welcome Back</h2>
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password">
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn btn-secondary" onclick="showRegister()">Create Account</button>
+            <div id="loginError"></div>
+        </div>
+
+        <!-- Register Screen -->
+        <div class="screen" id="registerScreen">
+            <h1>Bloomie🌸</h1>
+            <h2>Create Account</h2>
+            <div class="form-group">
+                <label for="registerName">Full Name</label>
+                <input type="text" id="registerName" placeholder="Enter your full name">
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" placeholder="Create a password">
+            </div>
+            <button class="btn" onclick="register()">Create Account</button>
+            <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+            <div id="registerError"></div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div class="screen" id="dashboardScreen">
+            <h1>👶 Your Children</h1>
+            <div id="childrenList"></div>
+            <button class="btn" onclick="showAddChild()">Add New Child</button>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Add Child Screen -->
+        <div class="screen" id="addChildScreen">
+            <h1>➕ Add New Child</h1>
+            <div class="form-group">
+                <label for="childName">Child's Name</label>
+                <input type="text" id="childName" placeholder="Enter child's name">
+            </div>
+            <div class="form-group">
+                <label for="geneticReport">Genetic Report (JSON or PDF)</label>
+                <div class="file-upload" onclick="document.getElementById('geneticFile').click()">
+                    <input type="file" id="geneticFile" accept=".json,.pdf" onchange="handleFileSelect(event)">
+                    <p id="fileStatus">Click to upload genetic report (JSON or PDF)</p>
+                </div>
+            </div>
+            <button class="btn" onclick="uploadGeneticReport()" id="uploadBtn" disabled>Upload Report</button>
+            <button class="btn btn-secondary" onclick="showDashboard()">Back</button>
+            <div id="uploadError"></div>
+        </div>
+
+        <!-- Questions Screen -->
+        <div class="screen" id="questionsScreen">
+            <h1>📝 Weekly Check-in</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="questionContainer"></div>
+            <div id="questionError"></div>
+            <button class="btn btn-secondary" onclick="showDashboard()" style="margin-top: 20px;">Back to Dashboard</button>
+        </div>
+
+        <!-- Results Screen -->
+        <div class="screen" id="resultsScreen">
+            <h1>✅ Check-in Complete!</h1>
+            <div id="recommendationsContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+
+        <!-- Recommendations History Screen -->
+        <div class="screen" id="historyScreen">
+            <h1>📚 Recommendations History</h1>
+            <div id="historyContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+
+        <!-- Traits Display Screen -->
+        <div class="screen" id="traitsScreen">
+            <h1>Genetic Traits Report</h1>
+            <div id="traitsContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
+
+        <!-- Dr. Bloom Chat Screen -->
+        <div class="screen" id="drBloomScreen">
+            <h1 style="color: #4CAF50;">💬 Dr. Bloom Consultation</h1>
+            
+            <!-- Chat Interface -->
+            <div id="drBloomChat">
+                <div id="chatContainer" style="background: #f8f9fa; border: 2px solid #e1e5e9; border-radius: 8px; height: 400px; overflow-y: auto; padding: 15px; margin-bottom: 15px;">
+                    <div id="chatMessages"></div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="display: flex; gap: 10px;">
+                        <textarea id="chatInput" placeholder="Type your message to Dr. Bloom..." rows="2" style="flex: 1; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; resize: vertical;"></textarea>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <button class="btn btn-dr-bloom" onclick="sendChatMessage()" id="sendBtn" style="height: fit-content;">Send</button>
+                            <input type="file" id="chatImageFile" accept=".jpg,.jpeg,.png,.pdf" onchange="handleChatImageSelect(event)" style="display: none;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('chatImageFile').click()" style="height: fit-content; font-size: 12px;">📷</button>
+                        </div>
+                    </div>
+                    <div id="chatImagePreview" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn btn-success" onclick="completeDrBloomSession()" id="completeBtn">Complete Consultation</button>
+                    <button class="btn btn-secondary" onclick="showDashboard()">Back to Dashboard</button>
+                </div>
+                <div id="drBloomChatError"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let authToken = localStorage.getItem('authToken');
+        let currentQuestions = [];
+        let currentAnswers = [];
+        let currentQuestionIndex = 0;
+        let currentChildId = null;
+        let selectedFile = null;
+
+        // API base URL - change this to your FastAPI server URL
+        // const API_BASE = 'http://localhost:8000';
+        const API_BASE = 'https://child-profiling-api-271271835247.us-central1.run.app';
+
+        // Utility functions
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showError(elementId, message) {
+            const errorDiv = document.getElementById(elementId);
+            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(elementId, message) {
+            const successDiv = document.getElementById(elementId);
+            successDiv.innerHTML = `<div class="success">${message}</div>`;
+            setTimeout(() => {
+                successDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-API-Key': 'secure-api-key-2025', // Replace with your actual API key
+                ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+                ...options.headers
+            };
+
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'API call failed');
+            }
+
+            return response.json();
+        }
+
+        // Authentication functions
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showError('loginError', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                authToken = response.access_token;
+                localStorage.setItem('authToken', authToken);
+                loadDashboard();
+            } catch (error) {
+                showError('loginError', error.message);
+            }
+        }
+
+        async function register() {
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!name || !email || !password) {
+                showError('registerError', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                authToken = response.access_token;
+                localStorage.setItem('authToken', authToken);
+                loadDashboard();
+            } catch (error) {
+                showError('registerError', error.message);
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            showLogin();
+        }
+
+        // Screen navigation functions
+        function showLogin() {
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+            showScreen('loginScreen');
+        }
+
+        function showRegister() {
+            document.getElementById('registerName').value = '';
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            showScreen('registerScreen');
+        }
+
+        function showDashboard() {
+            loadDashboard();
+        }
+
+        function showAddChild() {
+            document.getElementById('childName').value = '';
+            document.getElementById('fileStatus').textContent = 'Click to upload genetic report JSON file';
+            document.getElementById('uploadBtn').disabled = true;
+            selectedFile = null;
+            showScreen('addChildScreen');
+        }
+
+        // Dashboard functions
+        async function loadDashboard() {
+            try {
+                const children = await apiCall('/children');
+                displayChildren(children);
+                showScreen('dashboardScreen');
+            } catch (error) {
+                showError('loginError', 'Failed to load dashboard');
+                logout();
+            }
+        }
+
+        function displayChildren(children) {
+            const container = document.getElementById('childrenList');
+            
+            if (children.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No children added yet. Add your first child to get started!</p>';
+                return;
+            }
+
+            container.innerHTML = children.map(child => `
+                <div class="child-card">
+                    <h3>${child.name || `Child ${child.id}`}</h3>
+                    <p><strong>Gender:</strong> ${child.gender}</p>
+                    <p><strong>Birthday:</strong> ${child.birthday}</p>
+                    <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
+                    <button class="btn btn-secondary" onclick="viewRecommendations('${child.id}')">View History</button>
+                    <button class="btn btn-secondary" onclick="viewTraits('${child.id}')">View Traits</button>
+                    <button class="btn btn-dr-bloom" onclick="openDrBloomConsultation('${child.id}')">Consult Dr. Bloom</button>
+                </div>
+            `).join('');
+        }
+
+        // File upload functions
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('fileStatus').textContent = `Selected: ${selectedFile.name}`;
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        async function uploadGeneticReport() {
+            const childName = document.getElementById('childName').value;
+            
+            if (!childName || !selectedFile) {
+                showError('uploadError', 'Please provide child name and select a file');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('child_name', childName);
+
+                const response = await fetch(`${API_BASE}/children/upload-genetic-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-API-Key': 'secure-api-key-2025' // Replace with your actual API key
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const result = await response.json();
+                showSuccess('uploadError', 'Genetic report uploaded successfully!');
+                
+                // Display traits if available
+                if (result.traits && result.traits.length > 0) {
+                    setTimeout(() => {
+                        displayTraits(result.traits, result.child_id);
+                    }, 1000);
+                } else {
+                    setTimeout(() => {
+                        loadDashboard();
+                    }, 2000);
+                }
+            } catch (error) {
+                showError('uploadError', error.message);
+            }
+        }
+
+        // Check-in functions
+        async function startCheckIn(childId) {
+            currentChildId = childId;
+            currentQuestionIndex = 0;
+            currentAnswers = [];
+
+            try {
+                const response = await apiCall(`/children/${childId}/check-in/questions`);
+                currentQuestions = response.questions;
+
+                if (currentQuestions.length === 0) {
+                    showError('uploadError', 'No questions available for check-in');
+                    return;
+                }
+
+                showScreen('questionsScreen');
+                displayQuestion();
+            } catch (error) {
+                showError('uploadError', `Failed to load questions: ${error.message}`);
+            }
+        }
+
+        function displayQuestion() {
+            const container = document.getElementById('questionContainer');
+            const question = currentQuestions[currentQuestionIndex];
+            
+            // Update progress bar
+            const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+
+            container.innerHTML = `
+                <div class="question-card">
+                    <h3>Question ${currentQuestionIndex + 1} of ${currentQuestions.length}</h3>
+                    <h3>${question.question}</h3>
+                    <div id="optionsContainer">
+                        ${question.options.map((option, index) => `
+                            <div class="option" onclick="selectOption(${index})" data-option="${index}">
+                                ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn" onclick="nextQuestion()" id="nextBtn" disabled>
+                            ${currentQuestionIndex === currentQuestions.length - 1 ? 'Submit' : 'Next'}
+                        </button>
+                        ${currentQuestionIndex > 0 ? '<button class="btn btn-secondary" onclick="prevQuestion()">Previous</button>' : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Restore previously selected answer if it exists
+            if (currentAnswers[currentQuestionIndex]) {
+                const selectedAnswer = currentAnswers[currentQuestionIndex].answer;
+                const selectedIndex = question.options.findIndex(opt => opt === selectedAnswer);
+                if (selectedIndex !== -1) {
+                    document.querySelector(`[data-option="${selectedIndex}"]`).classList.add('selected');
+                    document.getElementById('nextBtn').disabled = false;
+                }
+            }
+        }
+
+        function selectOption(optionIndex) {
+            // Remove previous selection
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selection to clicked option
+            document.querySelector(`[data-option="${optionIndex}"]`).classList.add('selected');
+            
+            // Enable next button
+            document.getElementById('nextBtn').disabled = false;
+            
+            // Store answer
+            const question = currentQuestions[currentQuestionIndex];
+            currentAnswers[currentQuestionIndex] = {
+                question: question.question,
+                answer: question.options[optionIndex]
+            };
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            } else {
+                submitCheckIn();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        }
+
+        async function submitCheckIn() {
+            try {
+                const response = await apiCall(`/children/${currentChildId}/check-in/submit`, {
+                    method: 'POST',
+                    body: JSON.stringify({ answers: currentAnswers })
+                });
+
+                displayResults(response);
+                showScreen('resultsScreen');
+            } catch (error) {
+                showError('questionError', `Failed to submit check-in: ${error.message}`);
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('recommendationsContainer');
+            
+            container.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>Summary</h3>
+                    <p>${results.summary}</p>
+                </div>
+                <div>
+                    <h3>Recommendations</h3>
+                    ${results.recommendations.map(rec => `
+                        <div class="recommendation">
+                            <h4>${rec.trait}</h4>
+                            <p><strong>Goal:</strong> ${rec.goal}</p>
+                            <p><strong>Activity:</strong> ${rec.activity}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // View Recommendations History
+        async function viewRecommendations(childId) {
+            try {
+                const history = await apiCall(`/children/${childId}/recommendations-history`);
+                displayRecommendationsHistory(history);
+                showScreen('historyScreen');
+            } catch (error) {
+                showError('uploadError', `Failed to load recommendations history: ${error.message}`);
+            }
+        }
+
+        async function viewTraits(childId) {
+            try {
+                const traits = await apiCall(`/children/${childId}/traits`);
+                displayTraits(traits, childId);
+            } catch (error) {
+                showError('uploadError', `Failed to load traits: ${error.message}`);
+            }
+        }
+
+        function displayTraits(traits, childId) {
+            const container = document.getElementById('traitsContainer');
+            
+            if (!traits || traits.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No genetic traits found.</p>';
+                showScreen('traitsScreen');
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="traits-list">
+                    ${traits.map(trait => `
+                        <div class="trait-card" style="background: #f8f9fa; border: 1px solid #e1e5e9; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+                            <h3 style="color: #667eea; margin-bottom: 10px;">${trait.trait_name}</h3>
+                            <p style="margin-bottom: 8px;"><strong>Gene:</strong> ${trait.gene}</p>
+                            <p style="margin-bottom: 8px;"><strong>Confidence:</strong> <span style="color: #4CAF50; font-weight: bold;">${trait.confidence}</span></p>
+                            <p style="margin-bottom: 0;"><strong>Description:</strong> ${trait.description}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            showScreen('traitsScreen');
+        }
+
+        function displayRecommendationsHistory(history) {
+            const container = document.getElementById('historyContainer');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No recommendations history yet.</p>';
+                return;
+            }
+
+            // Reverse the history array to show newest first
+            const reversedHistory = [...history].reverse();
+            
+            container.innerHTML = reversedHistory.map((entry, index) => `
+                <div class="recommendation-item" style="border: ${entry.entry_type === 'dr_bloom' ? '2px solid #667eea' : '1px solid #e0e0e0'}; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #667eea;">
+                            ${entry.entry_type === 'dr_bloom' ? '🩺 Dr. Bloom Consultation' : 
+                              entry.entry_type === 'initial' ? '🌟 Initial Assessment' :
+                              `📋 Check-in #${reversedHistory.length - index - 1}`}
+                        </h3>
+                        <p class="timestamp">${new Date(entry.timestamp).toLocaleDateString()} - ${entry.entry_type}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #555; margin-bottom: 8px;">📝 Summary</h4>
+                        <p style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 0;">${entry.summary}</p>
+                    </div>
+                    
+                    ${entry.recommendations && entry.recommendations.length > 0 ? `
+                        <div>
+                            <h4 style="color: #555; margin-bottom: 10px;">💡 Recommendations (${entry.recommendations.length})</h4>
+                            ${entry.recommendations.map(rec => `
+                                <div style="background: #f0f4f8; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                                        <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 10px;">${rec.trait}</span>
+                                        <strong style="color: #333;">${rec.goal}</strong>
+                                    </div>
+                                    <p style="margin: 5px 0 0 0; color: #555;">📌 ${rec.activity}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p style="color: #666;">No specific recommendations generated.</p>'}
+                </div>
+            `).join('');
+        }
+
+        // Emergency Check-in
+        function emergencyCheckIn(childId) {
+            currentChildId = childId;
+            document.getElementById('emergencyDescription').value = '';
+            document.getElementById('emergencyImageStatus').textContent = 'Click to upload image (JPEG, PNG, or PDF)';
+            selectedEmergencyImage = null;
+            showScreen('emergencyScreen');
+        }
+
+        // Handle Dr. Bloom image selection
+        let selectedDrBloomImage = null;
+        function handleDrBloomImageSelect(event) {
+            selectedDrBloomImage = event.target.files[0];
+            if (selectedDrBloomImage) {
+                document.getElementById('drBloomImageStatus').textContent = `Selected: ${selectedDrBloomImage.name}`;
+            }
+        }
+
+        // Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Remove data:image/jpeg;base64, prefix
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Submit Dr. Bloom session start
+        async function submitDrBloomSession() {
+            const description = document.getElementById('drBloomDescription').value.trim();
+            
+            if (!description) {
+                showError('drBloomError', 'Please describe your concern');
+                return;
+            }
+
+            try {
+                document.getElementById('submitDrBloomBtn').disabled = true;
+                document.getElementById('submitDrBloomBtn').textContent = 'Starting Session...';
+
+                let imageBase64 = null;
+                if (selectedDrBloomImage) {
+                    imageBase64 = await fileToBase64(selectedDrBloomImage);
+                }
+
+                const response = await apiCall(`/children/${currentChildId}/dr-bloom/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        initial_concern: description,
+                        image: imageBase64,
+                        image_type: selectedDrBloomImage ? selectedDrBloomImage.type : null
+                    })
+                });
+
+                // Display the Dr. Bloom session start results
+                const container = document.getElementById('recommendationsContainer');
+                container.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #4CAF50;">Dr. Bloom Session Started</h3>
+                        <p>${response.initial_response || 'Dr. Bloom session started successfully.'}</p>
+                        <p><strong>Session ID:</strong> ${response.session_id}</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>Initial Concern:</strong> ${description}</p>
+                        ${selectedDrBloomImage ? `<p><strong>Image:</strong> ${selectedDrBloomImage.name} attached</p>` : ''}
+                    </div>
+                `;
+                showScreen('resultsScreen');
+            } catch (error) {
+                showError('drBloomError', `Failed to start Dr. Bloom session: ${error.message}`);
+            } finally {
+                document.getElementById('submitDrBloomBtn').disabled = false;
+                document.getElementById('submitDrBloomBtn').textContent = 'Start Dr. Bloom Session';
+            }
+        }
+
+        // Dr. Bloom Chat Variables
+        let currentDrBloomSessionId = null;
+        let selectedChatImage = null;
+
+        async function openDrBloomConsultation(childId) {
+            currentChildId = childId;
+            selectedDrBloomImage = null;
+            selectedChatImage = null;
+            
+            // Show screen first, then load content
+            showScreen('drBloomScreen');
+            document.getElementById('drBloomChat').style.display = 'block';
+            
+            try {
+                // Clear chat and show loading
+                document.getElementById('chatMessages').innerHTML = '<div class="typing-indicator"><div>Starting Dr. Bloom session...</div></div>';
+                
+                // Start session immediately with a default greeting
+                const response = await apiCall(`/children/${childId}/dr-bloom/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        initial_concern: "I'd like to consult with Dr. Bloom about my child.",
+                        image: null,
+                        image_type: null
+                    })
+                });
+
+                // Store session ID and clear loading
+                currentDrBloomSessionId = response.session_id;
+                console.log('Dr. Bloom session started with ID:', currentDrBloomSessionId);
+                console.log('Full response:', response);
+                
+                document.getElementById('chatMessages').innerHTML = '';
+                
+                // Add Dr. Bloom's welcome message
+                addChatMessage('dr-bloom', response.initial_response || "Hello! I'm Dr. Bloom, your AI pediatric consultant. What would you like to discuss about your child today?");
+                
+                // Focus on chat input
+                document.getElementById('chatInput').focus();
+                
+            } catch (error) {
+                document.getElementById('chatMessages').innerHTML = `<div style="color: red; padding: 15px;">Failed to start Dr. Bloom session: ${error.message}</div>`;
+            }
+        }
+
+        // Handle chat image selection
+        function handleChatImageSelect(event) {
+            selectedChatImage = event.target.files[0];
+            if (selectedChatImage) {
+                document.getElementById('chatImagePreview').textContent = `Image selected: ${selectedChatImage.name}`;
+            } else {
+                document.getElementById('chatImagePreview').textContent = '';
+            }
+        }
+
+        // Start Dr. Bloom chat session
+        async function startDrBloomChat() {
+            const description = document.getElementById('drBloomDescription').value.trim();
+            
+            if (!description) {
+                showError('drBloomSetupError', 'Please describe your concern');
+                return;
+            }
+
+            try {
+                document.getElementById('startDrBloomBtn').disabled = true;
+                document.getElementById('startDrBloomBtn').textContent = 'Starting...';
+
+                let imageBase64 = null;
+                if (selectedDrBloomImage) {
+                    imageBase64 = await fileToBase64(selectedDrBloomImage);
+                }
+
+                const response = await apiCall(`/children/${currentChildId}/dr-bloom/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        initial_concern: description,
+                        image: imageBase64,
+                        image_type: selectedDrBloomImage ? selectedDrBloomImage.type : null
+                    })
+                });
+
+                // Store session ID and switch to chat interface
+                currentDrBloomSessionId = response.session_id;
+                
+                // Initialize chat
+                document.getElementById('chatMessages').innerHTML = '';
+                
+                // Add initial user message
+                addChatMessage('user', description, selectedDrBloomImage ? selectedDrBloomImage.name : null);
+                
+                // Add Dr. Bloom's initial response
+                addChatMessage('dr-bloom', response.initial_response || 'Hello! I\'m Dr. Bloom. I\'ve reviewed your concern and I\'m here to help.');
+                
+                // Switch to chat interface
+                document.getElementById('drBloomSetup').style.display = 'none';
+                document.getElementById('drBloomChat').style.display = 'block';
+                
+                // Focus on chat input
+                document.getElementById('chatInput').focus();
+                
+            } catch (error) {
+                showError('drBloomSetupError', `Failed to start Dr. Bloom session: ${error.message}`);
+            } finally {
+                document.getElementById('startDrBloomBtn').disabled = false;
+                document.getElementById('startDrBloomBtn').textContent = 'Start Consultation';
+            }
+        }
+
+        // Add message to chat
+        function addChatMessage(sender, message, imageAttachment = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}`;
+            
+            if (sender === 'dr-bloom') {
+                messageDiv.innerHTML = `
+                    <div class="sender">Dr. Bloom</div>
+                    <div>${message}</div>
+                    <div class="timestamp">${timestamp}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div>${message}</div>
+                    ${imageAttachment ? `<div class="image-attachment">📷 ${imageAttachment}</div>` : ''}
+                    <div class="timestamp">${timestamp}</div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const chatMessages = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="sender" style="font-weight: bold; color: #4CAF50; font-size: 14px; margin-bottom: 5px;">Dr. Bloom</div>
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Send chat message
+        async function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            
+            if (!message) return;
+            
+            if (!currentDrBloomSessionId) {
+                showError('drBloomChatError', 'No active Dr. Bloom session. Please start a new consultation.');
+                return;
+            }
+            
+            console.log('Sending message to session:', currentDrBloomSessionId);
+            
+            try {
+                // Disable send button
+                document.getElementById('sendBtn').disabled = true;
+                
+                // Add user message to chat
+                addChatMessage('user', message, selectedChatImage ? selectedChatImage.name : null);
+                
+                // Clear input
+                chatInput.value = '';
+                document.getElementById('chatImagePreview').textContent = '';
+                
+                // Show typing indicator
+                showTypingIndicator();
+                
+                // Prepare image if selected
+                let imageBase64 = null;
+                if (selectedChatImage) {
+                    imageBase64 = await fileToBase64(selectedChatImage);
+                }
+                
+                // Send message to API
+                const response = await apiCall(`/chatbot/conversations/${currentDrBloomSessionId}/messages`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        message: message,
+                        agent_type: 'dr_bloom',
+                        image: imageBase64,
+                        image_type: selectedChatImage ? selectedChatImage.type : null
+                    })
+                });
+                
+                // Hide typing indicator
+                hideTypingIndicator();
+                
+                // Add Dr. Bloom's response
+                addChatMessage('dr-bloom', response.agent_response);
+                
+                // Clear selected image
+                selectedChatImage = null;
+                document.getElementById('chatImageFile').value = '';
+                
+            } catch (error) {
+                hideTypingIndicator();
+                showError('drBloomChatError', `Failed to send message: ${error.message}`);
+            } finally {
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        // Complete Dr. Bloom session
+        async function completeDrBloomSession() {
+            if (!currentDrBloomSessionId) {
+                showError('drBloomChatError', 'No active session to complete');
+                return;
+            }
+            
+            try {
+                document.getElementById('completeBtn').disabled = true;
+                document.getElementById('completeBtn').textContent = 'Completing...';
+                
+                const response = await apiCall(`/children/${currentChildId}/dr-bloom/complete`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        session_id: currentDrBloomSessionId,
+                        child_id: currentChildId
+                    })
+                });
+                
+                // Fetch the latest log entry to display it
+                const history = await apiCall(`/children/${currentChildId}/recommendations-history`);
+                // History is in ascending order (oldest first), so get the last entry
+                const latestLog = history[history.length - 1]; // Most recent entry
+                
+                // Show completion message with full log
+                const container = document.getElementById('recommendationsContainer');
+                container.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #4CAF50;">✅ Dr. Bloom Consultation Completed</h3>
+                        <p>${response.message}</p>
+                    </div>
+                    
+                    <div class="recommendation-item" style="border: 2px solid #667eea; padding: 20px; border-radius: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #667eea;">Dr. Bloom Consultation Log</h3>
+                            <p class="timestamp">${new Date().toLocaleDateString()} - dr_bloom</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="color: #555; margin-bottom: 8px;">📝 Summary</h4>
+                            <p style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 0;">${latestLog ? latestLog.summary : response.summary}</p>
+                        </div>
+                        
+                        ${latestLog && latestLog.recommendations && latestLog.recommendations.length > 0 ? `
+                            <div>
+                                <h4 style="color: #555; margin-bottom: 10px;">💡 Recommendations (${latestLog.recommendations.length})</h4>
+                                ${latestLog.recommendations.map(rec => `
+                                    <div style="background: #f0f4f8; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                                        <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                                            <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 10px;">${rec.trait}</span>
+                                            <strong style="color: #333;">${rec.goal}</strong>
+                                        </div>
+                                        <p style="margin: 5px 0 0 0; color: #555;">📌 ${rec.activity}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p style="color: #666;">No specific recommendations generated.</p>'}
+                        
+                        ${response.conversation_deleted ? '<p style="color: #666; font-size: 14px; margin-top: 15px;"><em>💬 Conversation has been logged and deleted for privacy.</em></p>' : ''}
+                    </div>
+                `;
+                
+                // Reset session
+                currentDrBloomSessionId = null;
+                showScreen('resultsScreen');
+                
+            } catch (error) {
+                showError('drBloomChatError', `Failed to complete session: ${error.message}`);
+            } finally {
+                document.getElementById('completeBtn').disabled = false;
+                document.getElementById('completeBtn').textContent = 'Complete Consultation';
+            }
+        }
+
+
+        // Allow Enter key to send message
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+
+        // Initialize app
+        if (authToken) {
+            loadDashboard();
+        } else {
+            showLogin();
+        }
+    </script>
+</body>
+</html>

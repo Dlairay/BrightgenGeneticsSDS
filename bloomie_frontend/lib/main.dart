@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/question_1_slider.dart';
+import 'screens/dynamic_questionnaire_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/auth_wrapper.dart';
 import 'insights_summary.dart';
+import 'providers/app_state_provider.dart';
+import 'providers/questionnaire_provider.dart';
+import 'providers/auth_provider.dart';
+import 'services/storage_service.dart';
+import 'services/api_service.dart';
+import 'core/utils/logger.dart';
+import 'core/constants/app_colors.dart';
 
-void main() {
-  runApp(const FigmaToCodeApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize services
+  await StorageService.init();
+  ApiService.init();
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AppStateProvider()),
+        ChangeNotifierProvider(create: (_) => QuestionnaireProvider()),
+      ],
+      child: const FigmaToCodeApp(),
+    ),
+  );
 }
 
 class FigmaToCodeApp extends StatelessWidget {
@@ -16,9 +43,7 @@ class FigmaToCodeApp extends StatelessWidget {
       theme: ThemeData.light().copyWith(
         scaffoldBackgroundColor: const Color(0xFFFAF4EA),
       ),
-      home: Scaffold(
-        body: HomePageQuestionnaireReminder(),
-      ),
+      home: const AuthWrapper(),
     );
   }
 }
@@ -146,13 +171,18 @@ class HomePageQuestionnaireReminder extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 20), // Fixed padding for shadows
                 child: Row(
                   children: [
-                    // Bi-weekly Questionnaire Card - NOW INTERACTIVE
+                    // Bi-weekly Questionnaire Card - NOW DYNAMIC AND INTERACTIVE
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => QuestionnairePage()),
+                          MaterialPageRoute(
+                            builder: (context) => const DynamicQuestionnaireScreen(
+                              childId: 'amy_001', // TODO: Use actual child ID from user state
+                            ),
+                          ),
                         );
+                        AppLogger.info('Starting dynamic bi-weekly questionnaire');
                       },
                       child: _buildQuestionnaireCard(),
                     ),
@@ -269,7 +299,7 @@ class HomePageQuestionnaireReminder extends StatelessWidget {
                   }),
                   _buildBottomNavIcon('assets/images/home.png', const Color(0xFFFFE066), () {
                     // Already on home page, maybe scroll to top or refresh
-                    print("Already on home page");
+                    AppLogger.info('Already on home page');
                   }),
                   _buildBottomNavIcon('assets/images/drbloom.png', const Color(0xFF98E4D6), () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => ChatBotPage()));
@@ -309,7 +339,7 @@ class HomePageQuestionnaireReminder extends StatelessWidget {
             left: 31,
             top: 20,
             child: Text(
-              'Bi-weekly Questionnaire',
+              'Dynamic Check-in',
               style: TextStyle(
                 color: Color(0xFF717070),
                 fontSize: 25,
@@ -662,6 +692,7 @@ class ChatHistory {
 
 // CHAT HISTORY PAGE
 class ChatHistoryPage extends StatelessWidget {
+  const ChatHistoryPage({super.key});
   @override
   Widget build(BuildContext context) {
     final chatSessions = ChatHistory.getChatSessions();
@@ -701,7 +732,7 @@ class ChatHistoryPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: AppColors.withOpacity(Colors.black, 0.1),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -889,7 +920,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
           isBot: false,
         ));
       });
-      print('Sent: ${_controller.text}');
+      AppLogger.info('Message sent: ${_controller.text}');
       _controller.clear();
     }
   }
@@ -1027,7 +1058,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
                             // Mic button
                             GestureDetector(
                               onTap: () {
-                                print("Voice recording activated");
+                                AppLogger.info('Voice recording activated');
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(8),
@@ -1071,7 +1102,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
                         }),
                         _buildChatBottomNavIcon('assets/images/drbloom.png', const Color(0xFF98E4D6), () {
                           // Already in chat, maybe scroll to top or show menu
-                          print("Already in Dr Bloom chat");
+                          AppLogger.info('Already in Dr Bloom chat');
                         }),
                         _buildChatBottomNavIcon('assets/images/profile.png', const Color(0xFFFFB366), () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage()));
@@ -1117,7 +1148,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: AppColors.withOpacity(Colors.black, 0.1),
                     blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
@@ -1180,7 +1211,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
               Colors.orange[300]!,
               () {
                 Navigator.pop(context);
-                print("Camera selected");
+                AppLogger.info('Camera selected');
                 // Placeholder - add actual camera functionality later
                 setState(() {
                   _messages.add(ChatMessage(
@@ -1196,7 +1227,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
               Colors.green[300]!,
               () {
                 Navigator.pop(context);
-                print("Photos selected");
+                AppLogger.info('Photos selected');
                 // Placeholder - add actual gallery functionality later
                 setState(() {
                   _messages.add(ChatMessage(
@@ -1212,7 +1243,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
               Colors.blue[300]!,
               () {
                 Navigator.pop(context);
-                print("Files selected");
+                AppLogger.info('Files selected');
               },
             ),
           ],
@@ -1230,7 +1261,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: AppColors.withOpacity(color, 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -1264,6 +1295,7 @@ class ChatMessage {
 // PLACEHOLDER PAGES - Replace these with your actual pages later
 
 class QuestionnairePage extends StatelessWidget {
+  const QuestionnairePage({super.key});
   @override
   Widget build(BuildContext context) {
     return Question1Slider();
@@ -1271,6 +1303,7 @@ class QuestionnairePage extends StatelessWidget {
 }
 
 class ParentingFocusPage extends StatelessWidget {
+  const ParentingFocusPage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1302,6 +1335,7 @@ class ParentingFocusPage extends StatelessWidget {
 }
 
 class AdditionalContentPage extends StatelessWidget {
+  const AdditionalContentPage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1333,6 +1367,7 @@ class AdditionalContentPage extends StatelessWidget {
 }
 
 class StatisticsPage extends StatelessWidget {
+  const StatisticsPage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1364,6 +1399,7 @@ class StatisticsPage extends StatelessWidget {
 }
 
 class RecordsPage extends StatelessWidget {
+  const RecordsPage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1395,6 +1431,7 @@ class RecordsPage extends StatelessWidget {
 }
 
 class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
