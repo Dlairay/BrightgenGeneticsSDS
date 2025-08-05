@@ -435,7 +435,7 @@ class _LoginFlowPageState extends State<LoginFlowPage> {
           // Navigate to main home page
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => HomePageQuestionnaireReminder()),
+            MaterialPageRoute(builder: (context) => const Dashboard()),
           );
         },
         child: Container(

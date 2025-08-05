@@ -49,6 +49,7 @@ dependencies:
   
   # Networking
   dio: ^5.4.0
+  http_parser: ^4.0.2
   
   # Utils
   logger: ^2.0.2
@@ -80,27 +81,31 @@ flutter:
   uses-material-design: true
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/images/bloomie_icon.png
-    - assets/images/bloomie_background.png
-    - assets/images/bloomie_bottomicon.png
-    - assets/images/drbloom.png
-    - assets/images/home.png
-    - assets/images/profile.png
-    - assets/images/stats.png
-    - assets/images/babyamy.jpg
-    - assets/images/gensum.png
-    - assets/images/footstep.png
     - assets/images/baby-rash.jpg
-    - assets/images/dark-skin-baby-acne_4x3.jpg
-    - assets/images/Heat-Rash-Miliaria-on-Babies-722x406.jpg
+    - assets/images/babyamy.jpg
+    - assets/images/bicep.png
+    - assets/images/bloomie_background.png
+    - assets/images/bloomie_background2.png
+    - assets/images/bloomie_background3.png
+    - assets/images/bloomie_icon.png
+    - assets/images/dna.png
+    - assets/images/drbloom.png
+    - assets/images/footstep.png
+    - assets/images/gensum.png
+    - assets/images/home.png
+    - assets/images/no-virus.png
+    - assets/images/notes.png
+    - assets/images/parenting-focus-icon.png
+    - assets/images/profile.png
+    - assets/images/questionnaire-icon.png
     - assets/images/seborrheic-eczema_4x3.jpg
-    - assets/images/uploadfiles.png
+    - assets/images/setting_icon.png
     - assets/images/sp1.png
     - assets/images/sp2.png
     - assets/images/sp3.png
     - assets/images/sp4.png
-    - assets/images/bloomie_background2.png
-    - assets/images/bloomie_background3.png
+    - assets/images/stats.png
+    - assets/images/uploadfiles.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

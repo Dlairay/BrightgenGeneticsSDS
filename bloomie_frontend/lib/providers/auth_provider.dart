@@ -24,29 +24,37 @@ class AuthProvider extends ChangeNotifier {
   // Initialize auth state from storage
   Future<void> initializeAuth() async {
     try {
-      // For testing: Always clear auth to show login screen first
-      await _clearStoredAuth();
-      AppLogger.info('Auth cleared - showing login screen');
-      
-      // TODO: Uncomment to restore stored tokens later
-      /*
       final storedToken = await StorageService.getSecureData(StorageService.keyAuthToken);
       final storedEmail = await StorageService.getSecureData(StorageService.keyUserEmail);
       
       if (storedToken != null && storedEmail != null) {
         _accessToken = storedToken;
-        _currentUser = User(
-          id: 'user_stored',
-          name: storedEmail.split('@').first,
-          email: storedEmail,
-          children: [],
-        );
-        _isAuthenticated = true;
-        AppLogger.info('Auth initialized from stored credentials');
+        
+        // Try to verify token by fetching user data
+        try {
+          final childrenData = await ApiService.getChildren();
+          _currentUser = User(
+            id: 'user_stored',
+            name: storedEmail.split('@').first,
+            email: storedEmail,
+            children: childrenData.map((child) => Child.fromJson(child)).toList(),
+          );
+          _isAuthenticated = true;
+          
+          // Auto-select first child if available
+          if (_currentUser!.children.isNotEmpty) {
+            _selectedChild = _currentUser!.children.first;
+          }
+          
+          AppLogger.info('Auth initialized from stored credentials');
+        } catch (e) {
+          // Token is invalid, clear stored auth
+          AppLogger.warning('Stored token is invalid, clearing auth');
+          await _clearStoredAuth();
+        }
       } else {
         AppLogger.info('No stored credentials - showing login screen');
       }
-      */
     } catch (e) {
       AppLogger.error('Failed to initialize auth', error: e);
       await _clearStoredAuth();
@@ -209,6 +217,27 @@ class AuthProvider extends ChangeNotifier {
     if (child != null) {
       selectChild(child);
     }
+  }
+  
+  // Call this after major data changes (genetic report upload, etc.)
+  Future<void> invalidateAndRefresh() async {
+    AppLogger.info('♻️ Invalidating caches and refreshing data...');
+    // Clear any local state that might be cached
+    _selectedChild = null;
+    await forceRefresh();
+    
+    // Auto-select first child if available after refresh
+    if (_currentUser != null && _currentUser!.children.isNotEmpty) {
+      _selectedChild = _currentUser!.children.first;
+      AppLogger.info('Auto-selected first child after refresh: ${_selectedChild!.name}');
+      notifyListeners();
+    }
+  }
+  
+  // Force refresh - clears any caches and reloads fresh data
+  Future<void> forceRefresh() async {
+    AppLogger.info('🔄 Forcing full data refresh...');
+    await refreshUserData();
   }
   
   // Refresh user data

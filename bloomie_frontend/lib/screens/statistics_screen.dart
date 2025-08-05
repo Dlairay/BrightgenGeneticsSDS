@@ -5,7 +5,7 @@ import '../services/api_service.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/utils/logger.dart';
-import 'single_child_dashboard.dart';
+import '../main.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -73,7 +73,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   void _navigateBack() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
+      MaterialPageRoute(builder: (context) => const Dashboard()),
     );
   }
 
@@ -244,7 +244,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildHistoryCard(Map<String, dynamic> entry) {
-    final isDrBloom = entry['entry_type'] == 'dr_bloom';
+    final entryType = entry['entry_type'] ?? '';
+    final isDrBloom = entryType == 'dr_bloom';
+    
+    // Get title based on entry type (matching frontend.html logic)
+    String getEntryTitle() {
+      switch (entryType) {
+        case 'dr_bloom':
+          return '🩺 Dr. Bloom Consultation';
+        case 'initial':
+          return '🌟 Initial Assessment';
+        case 'checkin':
+        default:
+          // For check-ins, we could add numbering here if needed
+          return '📝 Weekly Check-in';
+      }
+    }
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -275,16 +290,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 child: Row(
                   children: [
                     Icon(
-                      isDrBloom ? Icons.medical_services : Icons.assignment,
-                      color: isDrBloom ? Colors.blue.shade600 : Colors.orange.shade600,
+                      isDrBloom ? Icons.medical_services : 
+                      entryType == 'initial' ? Icons.star : Icons.assignment,
+                      color: isDrBloom ? Colors.blue.shade600 : 
+                      entryType == 'initial' ? Colors.amber.shade600 : Colors.orange.shade600,
                       size: 24,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        isDrBloom ? '🩺 Dr. Bloom Consultation' : '📝 Weekly Check-in',
+                        getEntryTitle(),
                         style: AppTextStyles.h3.copyWith(
-                          color: isDrBloom ? Colors.blue.shade700 : Colors.orange.shade700,
+                          color: isDrBloom ? Colors.blue.shade700 : 
+                          entryType == 'initial' ? Colors.amber.shade700 : Colors.orange.shade700,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -293,13 +311,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
               ),
               
-              // Date
-              Text(
-                _formatDate(entry['created_at']),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
+              // Date from timestamp field
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatDate(entry['timestamp'] ?? entry['created_at']),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

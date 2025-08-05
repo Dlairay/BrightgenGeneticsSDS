@@ -30,6 +30,7 @@ class Recommendation(BaseModel):
     trait: str
     goal: str
     activity: str
+    tldr: Optional[str] = None  # Short summary for quick overview widget
 
 
 class FollowupQuestion(BaseModel):

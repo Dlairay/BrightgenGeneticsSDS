@@ -128,9 +128,61 @@ async def get_recommendations_history(
             raise HTTPException(status_code=403, detail="Access denied to this child")
         
         return await child_service.get_recommendations_history(child_id)
-        
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get recommendations history: {str(e)}")
+
+
+@router.get("/{child_id}/latest-recommendations")
+async def get_latest_recommendations(
+    child_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the latest recommendations from the most recent check-in.
+    Returns a quick overview of what to do for behavioral and cognitive development.
+    
+    Response format:
+    {
+        "child_id": "...",
+        "child_name": "...",
+        "last_check_in_date": "...",
+        "recommendations": [
+            {
+                "trait_name": "Working Memory",
+                "action": "Provide child with memory games and puzzles"
+            }
+        ],
+        "summary": "Overall summary from the check-in"
+    }
+    """
+    try:
+        if not await child_repo.user_has_access_to_child(current_user.id, child_id):
+            raise HTTPException(status_code=403, detail="Access denied to this child")
+        
+        return await child_service.get_latest_recommendations_overview(child_id)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get latest recommendations: {str(e)}")
+
+
+@router.get("/{child_id}/latest-recommendations-detail")
+async def get_latest_recommendations_detail(
+    child_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the detailed view of the latest recommendations (full activity descriptions).
+    Shows just the most recent check-in with complete details, not the full history.
+    """
+    try:
+        if not await child_repo.user_has_access_to_child(current_user.id, child_id):
+            raise HTTPException(status_code=403, detail="Access denied to this child")
+        
+        return await child_service.get_latest_recommendations_detail(child_id)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get latest recommendation details: {str(e)}")
 
 
 @router.get("/{child_id}/traits")
@@ -180,7 +232,19 @@ async def complete_dr_bloom_session(
         if not await child_repo.user_has_access_to_child(current_user.id, child_id):
             raise HTTPException(status_code=403, detail="Access denied to this child")
         
-        return await child_service.complete_dr_bloom_session(current_user.id, child_id, complete_data)
+        result = await child_service.complete_dr_bloom_session(current_user.id, child_id, complete_data)
+        print(f"API ENDPOINT - Result type: {type(result)}")
+        print(f"API ENDPOINT - Result: {result}")
+        
+        # Try to identify any Sentinel objects
+        import json
+        try:
+            json.dumps(result)
+            print("API ENDPOINT - Result is JSON serializable")
+        except Exception as e:
+            print(f"API ENDPOINT - JSON serialization error: {e}")
+            
+        return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to complete Dr. Bloom session: {str(e)}")

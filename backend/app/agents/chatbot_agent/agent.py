@@ -6,7 +6,14 @@ from google.genai import types
 import logging
 import json
 
+# Suppress logging noise
 logging.basicConfig(level=logging.ERROR)
+
+# Suppress Google ADK verbose logs
+logging.getLogger('google_adk').setLevel(logging.ERROR)
+logging.getLogger('google.adk').setLevel(logging.ERROR)
+logging.getLogger('google_genai').setLevel(logging.ERROR)
+logging.getLogger('google.genai').setLevel(logging.ERROR)
 
 
 class ChatbotAgent:
@@ -169,8 +176,18 @@ class ChildCareChatbot(ChatbotAgent):
     
     def __init__(self, app_name: str = "childcare_assistant"):
         super().__init__(app_name)
-        self._setup_tools()
-        self._create_agents()
+        self._tools_setup = False
+        self._agents_created = False
+    
+    def _ensure_initialized(self):
+        """Ensure tools and agents are created (lazy initialization)."""
+        if not self._tools_setup:
+            self._setup_tools()
+            self._tools_setup = True
+        
+        if not self._agents_created:
+            self._create_agents()
+            self._agents_created = True
     
     def _setup_tools(self):
         """Setup child care related tools."""
@@ -293,24 +310,9 @@ class ChildCareChatbot(ChatbotAgent):
                 "activities": activities
             }
         
-        @self.add_tool
-        def generate_structured_log(conversation_history: str, child_traits: List[str]) -> dict:
-            """Generate a structured log entry from Dr. Bloom consultation matching exact log format."""
-            print(f"--- Tool: generate_structured_log called ---")
-            
-            # This tool will be called by Dr. Bloom to create the structured output
-            # The schema ensures consistent output that maps to the log structure
-            return {
-                "interpreted_traits": [],  # Will be filled by agent based on conversation
-                "recommendations": [],  # Will be filled with specific format
-                "summary": "",  # Will include issue and recommendation
-                "followup_questions": []  # Will include options
-            }
-        
         self.get_trait_information = get_trait_information
         self.get_development_milestones = get_development_milestones
         self.suggest_activities = suggest_activities
-        self.generate_structured_log = generate_structured_log
     
     def _create_agents(self):
         """Create specialized child care agents."""
@@ -382,43 +384,19 @@ class ChildCareChatbot(ChatbotAgent):
             agent_id="dr_bloom"
         )
         
-        # Dr. Bloom Log Generator - Creates structured logs from consultations
-        self.create_agent(
-            name="dr_bloom_log_generator",
-            description="Generates structured logs from Dr. Bloom consultations",
-            instruction=(
-                "You analyze Dr. Bloom consultation conversations and create structured log entries.\n\n"
-                "Given a conversation history, extract the parent's concern and Dr. Bloom's advice.\n\n"
-                "RULES:\n"
-                "1. For interpreted_traits: Only include if the concern relates to specific genetic traits. "
-                "If it's a general behavioral issue (like tantrum over a toy), use empty list [].\n"
-                "2. For recommendations: Extract Dr. Bloom's ACTUAL advice and make it actionable.\n"
-                "3. For summary: Be specific about both the issue AND the solution.\n"
-                "4. For followup_questions: Create relevant questions about this specific issue.\n\n"
-                "EXAMPLE INPUT:\n"
-                "Parent: my child is flipping out over not getting a mcdonald toy\n"
-                "Dr. Bloom: I understand how frustrating... acknowledge their feelings... offer alternatives...\n\n"
-                "EXAMPLE OUTPUT:\n"
-                "{\n"
-                '  "interpreted_traits": [],\n'
-                '  "recommendations": [\n'
-                '    {"trait": "emotional_regulation", "goal": "Help child process disappointment", '
-                '"activity": "Acknowledge their feelings by saying \'I see you\'re upset about not getting the toy\'"},\n'
-                '    {"trait": "behavioral_management", "goal": "Redirect attention from disappointment", '
-                '"activity": "Offer alternative activities like playing a favorite game at home"},\n'
-                '    {"trait": "coping_skills", "goal": "Teach healthy coping strategies", '
-                '"activity": "Practice deep breathing exercises when upset"}\n'
-                '  ],\n'
-                '  "summary": "Parent reported child having a meltdown over not getting a McDonald\'s Happy Meal toy. '
-                'Dr. Bloom recommended acknowledging the child\'s feelings, offering alternative activities, and teaching coping strategies.",\n'
-                '  "followup_questions": [\n'
-                '    {"question": "How did your child respond to the acknowledgment and alternative activities?", '
-                '"options": ["Calmed down quickly", "Took some time but improved", "Still struggled", "Had another meltdown"]}\n'
-                '  ]\n'
-                "}\n\n"
-                "Now analyze the actual conversation and create a similar structured response.\n"
-                "Return ONLY valid JSON, no other text."
-            ),
-            tools=[self.generate_structured_log],
-            agent_id="dr_bloom_log_generator"
-        )
+    
+    async def chat(self, agent_id: str, query: str, user_id: str, session_id: str, 
+                   context: Optional[Dict[str, Any]] = None, verbose: bool = False) -> str:
+        """Override parent chat method to ensure initialization."""
+        self._ensure_initialized()
+        return await super().chat(agent_id, query, user_id, session_id, context, verbose)
+    
+    def list_agents(self) -> List[str]:
+        """Override to ensure initialization."""
+        self._ensure_initialized()
+        return super().list_agents()
+    
+    def get_agent_info(self, agent_id: str) -> Dict[str, Any]:
+        """Override to ensure initialization."""
+        self._ensure_initialized()
+        return super().get_agent_info(agent_id)

@@ -10,8 +10,9 @@ from app.schemas.child import Child, CheckInAnswers, RecommendationHistory, DrBl
 from app.agents.planner_agent.agent import LogGenerationService
 from app.services.genetic_report_parser import GeneticReportParser
 from app.services.chatbot_service import ChatbotService
+from app.services.immunity_service import ImmunityService
+from app.services.growth_milestone_service import GrowthMilestoneService
 import pandas as pd
-import os
 
 
 class ChildService:
@@ -19,6 +20,8 @@ class ChildService:
         self.child_repo = ChildRepository()
         self.trait_repo = TraitRepository()
         self.log_service = LogGenerationService()
+        self.immunity_service = ImmunityService()
+        self.growth_service = GrowthMilestoneService()
         self.chatbot_service = ChatbotService()
         self.report_parser = GeneticReportParser()
     
@@ -78,8 +81,14 @@ class ChildService:
         derived_age = child_profile.get_derived_age()
         gender = genetic_data.get("gender")
         
+        # Filter traits for weekly check-ins to only include "Cognitive & Behavioral" archetype
+        cognitive_behavioral_traits = [
+            trait for trait in matched_traits 
+            if trait.get("archetype", "").lower() == "cognitive & behavioral"
+        ]
+        
         entry = await self.log_service.generate_initial_log(
-            matched_traits,
+            cognitive_behavioral_traits,  # Pass filtered traits for check-ins
             derived_age=derived_age,
             gender=gender
         )
@@ -87,10 +96,31 @@ class ChildService:
         await self.child_repo.save_log(child_id, entry)
         await self.child_repo.associate_child_with_user(user_id, child_id)
         
+        # Pre-compute and store static reference data for performance
+        print(f"🔄 Pre-computing immunity and growth data for child {child_id}...")
+        
+        # Pre-compute immunity suggestions (static data)
+        try:
+            immunity_data = await self._precompute_immunity_suggestions(child_id, matched_traits)
+            await self.child_repo.save_immunity_data(child_id, immunity_data)
+            print(f"✅ Immunity data pre-computed: {len(immunity_data.get('suggestions_by_trait', {}))} traits")
+        except Exception as e:
+            print(f"⚠️ Failed to pre-compute immunity data: {e}")
+        
+        # Pre-compute growth roadmap (static data)
+        try:
+            roadmap_data = await self._precompute_growth_roadmap(child_id, matched_traits, genetic_data.get("birthday", ""))
+            await self.child_repo.save_roadmap_data(child_id, roadmap_data)
+            print(f"✅ Growth roadmap pre-computed: {len(roadmap_data.get('roadmap', []))} age groups")
+        except Exception as e:
+            print(f"⚠️ Failed to pre-compute growth roadmap: {e}")
+        
         return {
             "message": "Genetic report uploaded successfully",
             "child_id": child_id,
-            "initial_log_created": True
+            "initial_log_created": True,
+            "immunity_data_precomputed": True,
+            "roadmap_data_precomputed": True
         }
     
     async def get_check_in_questions(self, child_id: str) -> Dict:
@@ -104,17 +134,7 @@ class ChildService:
         
         all_questions = []
         
-        # Check if most recent log is a Dr. Bloom consultation (Flow 1)
-        latest_log = logs[-1]
-        if latest_log.get('entry_type') == 'dr_bloom':
-            dr_bloom_question = {
-                "question": f"Follow-up on Dr. Bloom consultation: Has the situation you discussed with Dr. Bloom improved?",
-                "options": ["Yes, it's much better now", "Somewhat better", "No change", "It's gotten worse"],
-                "is_dr_bloom_followup": True
-            }
-            all_questions.append(dr_bloom_question)
-        
-        # Find most recent "checkin" or "initial" type entry for regular questions (Flow 2)
+        # Find most recent "checkin" or "initial" type entry for questions
         latest_checkin_log = None
         for log in reversed(logs):
             if log.get('entry_type') in ['checkin', 'initial']:
@@ -157,107 +177,60 @@ class ChildService:
         
         logs_for_agent = _convert_firestore_timestamps_to_strings(logs)
         
-        # Separate Dr. Bloom follow-up from regular answers
-        dr_bloom_answers = []
-        regular_answers = []
+        # All answers are now regular check-in answers (no more Dr. Bloom follow-ups)
+        regular_answers = answers.answers
         
-        for answer in answers.answers:
-            # Check if this is a Dr. Bloom follow-up question
-            if "Follow-up on Dr. Bloom consultation" in answer.question:
-                dr_bloom_answers.append(answer)
-            else:
-                regular_answers.append(answer)
-        
-        # Handle Dr. Bloom follow-up if present
-        if dr_bloom_answers:
-            dr_bloom_answer = dr_bloom_answers[0].answer
-            latest_dr_bloom_log = logs_for_agent[-1]  # Most recent should be dr_bloom
+        # Find most recent checkin log for traits context
+        # If only initial log exists, use it; otherwise use the latest checkin log
+        latest_checkin_log = None
+        if len(logs_for_agent) == 1 and logs_for_agent[0].get('entry_type') == 'initial':
+            # Only initial log exists
+            latest_checkin_log = logs_for_agent[0]
+        else:
+            # Multiple logs exist, find the latest checkin (not initial)
+            for log in reversed(logs_for_agent):
+                if log.get('entry_type') == 'checkin':
+                    latest_checkin_log = log
+                    break
             
-            if dr_bloom_answer in ["Yes, it's much better now", "Somewhat better"]:
-                # Mark Dr. Bloom consultation as resolved
-                resolved_entry = {
-                    'entry_type': 'dr_bloom_resolved',
-                    'interpreted_traits': [],
-                    'recommendations': [],
-                    'summary': f"Dr. Bloom follow-up: {dr_bloom_answer}. Consultation issue resolved.",
-                    'followup_questions': [],
-                    'resolved_consultation_id': latest_dr_bloom_log.get('dr_bloom_session_id', 'Unknown consultation')
-                }
-                await self.child_repo.save_log(child_id, resolved_entry)
-            
-            elif dr_bloom_answer in ["No change", "It's gotten worse"]:
-                # Note: In this case, the parent might want to start another Dr. Bloom session
-                # For now, we'll just log the status. The frontend can prompt for another consultation.
-                followup_entry = {
-                    'entry_type': 'dr_bloom_followup',
-                    'interpreted_traits': [],
-                    'recommendations': [],
-                    'summary': f"Dr. Bloom follow-up: {dr_bloom_answer}. May need additional consultation.",
-                    'followup_questions': [],
-                    'previous_consultation_id': latest_dr_bloom_log.get('dr_bloom_session_id', 'Unknown consultation')
-                }
-                await self.child_repo.save_log(child_id, followup_entry)
-        
-        # Handle regular weekly check-in
-        if regular_answers:
-            # Find most recent checkin log for traits context
-            # If only initial log exists, use it; otherwise use the latest checkin log
-            latest_checkin_log = None
-            if len(logs_for_agent) == 1 and logs_for_agent[0].get('entry_type') == 'initial':
-                # Only initial log exists
-                latest_checkin_log = logs_for_agent[0]
-            else:
-                # Multiple logs exist, find the latest checkin (not initial)
+            # If no checkin found but initial exists, use initial
+            if not latest_checkin_log:
                 for log in reversed(logs_for_agent):
-                    if log.get('entry_type') == 'checkin':
+                    if log.get('entry_type') == 'initial':
                         latest_checkin_log = log
                         break
-                
-                # If no checkin found but initial exists, use initial
-                if not latest_checkin_log:
-                    for log in reversed(logs_for_agent):
-                        if log.get('entry_type') == 'initial':
-                            latest_checkin_log = log
-                            break
-            
-            if not latest_checkin_log:
-                raise ValueError("No previous check-in found for regular questions")
-            
-            regular_answer_dict = {answer.question: answer.answer for answer in regular_answers}
-            
-            report_data = await self.child_repo.load_report(child_id)
-            child_profile = ChildProfile(child_id, trait_db)
-            child_profile.report = report_data
-            
-            child_age = child_profile.get_derived_age()
-            child_gender = report_data.get("gender")
-            
-            session_id = f"session_{child_id}"
-            await self.log_service._ensure_session(session_id)
-            
-            new_entry = await self.log_service._generate_followup_entry(
-                latest_checkin_log['interpreted_traits'],
-                regular_answer_dict,
-                session_id,
-                logs_for_agent,
-                derived_age=child_age,
-                gender=child_gender
-            )
-            
-            await self.child_repo.save_log(child_id, new_entry)
-            
-            return {
-                "message": "Check-in completed successfully",
-                "recommendations": new_entry.get('recommendations', []),
-                "summary": new_entry.get('summary', ''),
-                "emergency_handled": len(dr_bloom_answers) > 0
-            }
+        
+        if not latest_checkin_log:
+            raise ValueError("No previous check-in found for questions")
+        
+        regular_answer_dict = {answer.question: answer.answer for answer in regular_answers}
+        
+        report_data = await self.child_repo.load_report(child_id)
+        child_profile = ChildProfile(child_id, trait_db)
+        child_profile.report = report_data
+        
+        child_age = child_profile.get_derived_age()
+        child_gender = report_data.get("gender")
+        
+        session_id = f"session_{child_id}"
+        await self.log_service._ensure_session(session_id)
+        
+        new_entry = await self.log_service._generate_followup_entry(
+            latest_checkin_log['interpreted_traits'],
+            regular_answer_dict,
+            session_id,
+            logs_for_agent,
+            derived_age=child_age,
+            gender=child_gender
+        )
+        
+        await self.child_repo.save_log(child_id, new_entry)
         
         return {
-            "message": "Dr. Bloom follow-up completed",
-            "recommendations": [],
-            "summary": "Dr. Bloom follow-up has been addressed.",
-            "emergency_handled": len(dr_bloom_answers) > 0
+            "message": "Check-in completed successfully",
+            "recommendations": new_entry.get('recommendations', []),
+            "summary": new_entry.get('summary', ''),
+            "emergency_handled": False
         }
     
     async def get_child_profile(self, child_id: str) -> Dict:
@@ -277,6 +250,104 @@ class ChildService:
                 ))
         
         return history
+    
+    async def get_latest_recommendations_overview(self, child_id: str) -> Dict:
+        """
+        Get a quick overview of the latest recommendations for behavioral and cognitive development.
+        This pulls from the most recent check-in log without running the AI agent.
+        """
+        # Get all logs
+        logs = await self.child_repo.load_logs(child_id)
+        
+        # Find the most recent log with recommendations (both initial and checkin)
+        latest_log = None
+        for log in reversed(logs):  # Start from most recent
+            if log.get('entry_type') in ['initial', 'checkin'] and 'recommendations' in log and log['recommendations']:
+                latest_log = log
+                break
+        
+        if not latest_log:
+            # No check-in logs found, return empty overview
+            report_data = await self.child_repo.load_report(child_id)
+            child_name = report_data.get('name', 'Child') if report_data else 'Child'
+            
+            return {
+                "child_id": child_id,
+                "child_name": child_name,
+                "last_check_in_date": None,
+                "recommendations": [],
+                "summary": "No check-ins completed yet"
+            }
+        
+        # Get child name
+        report_data = await self.child_repo.load_report(child_id)
+        child_name = report_data.get('name', 'Child') if report_data else 'Child'
+        
+        # Format recommendations into simple action items
+        formatted_recommendations = []
+        for rec in latest_log['recommendations']:
+            # Use tldr if available, otherwise fall back to combining goal and activity
+            if rec.get('tldr'):
+                action = rec['tldr']
+            else:
+                # Fallback for old logs without tldr
+                action = f"Provide child with {rec.get('activity', 'activities')} to {rec.get('goal', 'support development').lower()}"
+            
+            formatted_recommendations.append({
+                "trait_name": rec.get('trait', 'Unknown trait'),
+                "action": action
+            })
+        
+        return {
+            "child_id": child_id,
+            "child_name": child_name,
+            "last_check_in_date": latest_log.get('timestamp'),
+            "recommendations": formatted_recommendations,
+            "summary": latest_log.get('summary', 'No summary available')
+        }
+    
+    async def get_latest_recommendations_detail(self, child_id: str) -> Dict:
+        """
+        Get detailed view of the latest recommendations with full activity descriptions.
+        Returns the complete latest log entry for display.
+        """
+        # Get all logs
+        logs = await self.child_repo.load_logs(child_id)
+        
+        # Find the most recent log with recommendations (both initial and checkin)
+        latest_log = None
+        for log in reversed(logs):  # Start from most recent
+            if log.get('entry_type') in ['initial', 'checkin'] and 'recommendations' in log and log['recommendations']:
+                latest_log = log
+                break
+        
+        if not latest_log:
+            # No logs found, return empty detail
+            report_data = await self.child_repo.load_report(child_id)
+            child_name = report_data.get('name', 'Child') if report_data else 'Child'
+            
+            return {
+                "child_id": child_id,
+                "child_name": child_name,
+                "last_check_in_date": None,
+                "entry_type": None,
+                "recommendations": [],
+                "summary": "No check-ins completed yet"
+            }
+        
+        # Get child name
+        report_data = await self.child_repo.load_report(child_id)
+        child_name = report_data.get('name', 'Child') if report_data else 'Child'
+        
+        # Return full recommendation details
+        return {
+            "child_id": child_id,
+            "child_name": child_name,
+            "last_check_in_date": latest_log.get('timestamp'),
+            "entry_type": latest_log.get('entry_type'),
+            "recommendations": latest_log.get('recommendations', []),
+            "summary": latest_log.get('summary', 'No summary available')
+        }
     
     async def start_dr_bloom_session(self, user_id: str, child_id: str, session_data: DrBloomSessionStart) -> Dict:
         """Start a Dr. Bloom consultation session."""
@@ -318,17 +389,17 @@ class ChildService:
         
         child_name = report_data.get("name", "Child")
         
-        # Get structured log data from Dr. Bloom conversation BEFORE deleting
-        print("Getting structured log data...")
+        # Generate medical logs from Dr. Bloom conversation BEFORE deleting
+        print("🏥 Processing Dr. Bloom conversation for medical logs...")
         try:
-            log_data = await self.chatbot_service.generate_structured_log(
+            medical_result = await self.chatbot_service.generate_medical_logs_only(
                 session_id=complete_data.session_id,
                 user_id=user_id,
                 child_id=child_id
             )
-            print(f"Log data generated: {log_data}")
+            print(f"🏥 Medical log processing result: {medical_result}")
         except Exception as e:
-            print(f"Error generating log data: {e}")
+            print(f"💥 Error processing medical logs: {e}")
             raise
         
         # Delete the conversation and all its messages immediately after getting data
@@ -342,30 +413,29 @@ class ChildService:
         except Exception as e:
             print(f"Error deleting conversation: {e}")
             # Continue anyway - we still want to save the log
-        # Create log entry matching your exact structure
-        dr_bloom_entry = {
-            'entry_type': 'dr_bloom',  # Add this to your accepted entry types
-            'interpreted_traits': log_data.get('interpreted_traits', []),
-            'recommendations': log_data.get('recommendations', []),
-            'summary': log_data.get('summary', ''),
-            'followup_questions': log_data.get('followup_questions', [])
+        print("🏥 Dr. Bloom completion finished successfully")
+        
+        # Build response carefully to avoid any None/Sentinel issues
+        response = {
+            "message": "Dr. Bloom medical consultation completed",
+            "summary": medical_result.get('summary', 'Medical consultation completed'),
+            "medical_logs_created": medical_result.get('medical_logs_created', 0),
+            "conversation_deleted": True,
+            "status": medical_result.get('status', 'completed')
         }
         
-        print(f"Saving log entry: {dr_bloom_entry}")
-        try:
-            await self.child_repo.save_log(child_id, dr_bloom_entry)
-            print("Log entry saved successfully")
-        except Exception as e:
-            print(f"Error saving log entry: {e}")
-            raise
+        # Only add medical_log if it exists
+        if medical_result.get('medical_log'):
+            response["medical_log"] = medical_result['medical_log']
         
-        print("Dr. Bloom completion finished successfully")
-        return {
-            "message": "Dr. Bloom consultation completed and logged",
-            "summary": log_data.get('summary', 'Consultation completed'),
-            "log_created": True,
-            "conversation_deleted": True
-        }
+        # Only add log_id if it exists
+        if medical_result.get('log_id'):
+            response["log_id"] = medical_result['log_id']
+            
+        print(f"🏥 RESPONSE KEYS: {list(response.keys())}")
+        print(f"🏥 RESPONSE: {response}")
+        
+        return response
     
     async def create_child_profile_from_file(self, file_content: bytes, content_type: str, child_name: str, user_id: str) -> Dict:
         """
@@ -423,8 +493,116 @@ class ChildService:
                 "confidence": confidence_percentage,
                 "description": trait.get("description", ""),
                 "gene": trait.get("gene", ""),
-                "trait_name": trait.get("trait_name", "")
+                "trait_name": trait.get("trait_name", ""),
+                "archetype": trait.get("archetype", "")
             }
             mapped_traits.append(mapped_trait)
         
         return mapped_traits
+    
+    async def _precompute_immunity_suggestions(self, child_id: str, matched_traits: List[Dict]) -> Dict:
+        """Pre-compute immunity suggestions based on traits."""
+        # Filter for immunity & resilience traits
+        immunity_traits = [
+            trait for trait in matched_traits
+            if trait.get('archetype', '').lower() == 'immunity & resilience'
+        ]
+        
+        # Extract trait names
+        trait_names = [trait.get('trait_name', '') for trait in immunity_traits if trait.get('trait_name')]
+        
+        if not trait_names:
+            return {
+                'child_id': child_id,
+                'immunity_traits': immunity_traits,
+                'suggestions_by_trait': {},
+                'total_traits': 0,
+                'total_suggestions': 0
+            }
+        
+        # Get grouped suggestions from reference data
+        grouped_suggestions = await self.immunity_service.immunity_suggestion_repo.get_grouped_suggestions_for_child(trait_names)
+        
+        return {
+            'child_id': child_id,
+            'immunity_traits': immunity_traits,
+            'suggestions_by_trait': grouped_suggestions,
+            'total_traits': len(immunity_traits),
+            'total_suggestions': sum(len(suggestions) for suggestions in grouped_suggestions.values())
+        }
+    
+    async def _precompute_growth_roadmap(self, child_id: str, matched_traits: List[Dict], birthday: str) -> Dict:
+        """Pre-compute growth milestone roadmap based on traits."""
+        # Filter for Growth & Development traits (extract gene IDs)
+        growth_genes = []
+        for trait in matched_traits:
+            if trait.get("archetype", "").lower() == "growth & development":
+                gene = trait.get("gene", "")
+                if gene and gene not in growth_genes:
+                    growth_genes.append(gene)
+        
+        if not growth_genes:
+            return {
+                'child_id': child_id,
+                'growth_genes': growth_genes,
+                'roadmap': [],
+                'message': "No Growth & Development traits found for this child"
+            }
+        
+        # Load all milestones for the genes (static data)
+        all_milestones = []
+        for gene_id in growth_genes:
+            gene_milestones = await self.growth_service.milestone_repo.get_milestones_for_gene(gene_id)
+            all_milestones.extend(gene_milestones)
+        
+        if not all_milestones:
+            return {
+                'child_id': child_id,
+                'growth_genes': growth_genes,
+                'roadmap': [],
+                'message': "No milestones found for this child's genetic traits"
+            }
+        
+        # Group milestones by age ranges (this is static, age-independent)
+        age_groups = {}
+        
+        for milestone in all_milestones:
+            age_start = milestone.get("age_start", 0)
+            age_end = milestone.get("age_end", 0)
+            
+            # Create age range key
+            age_key = f"{age_start}-{age_end}"
+            
+            if age_key not in age_groups:
+                age_groups[age_key] = {
+                    "age_start": age_start,
+                    "age_end": age_end,
+                    "milestones": []
+                }
+            
+            # Process food examples
+            food_examples = milestone.get("food_examples", "")
+            food_list = [food.strip() for food in food_examples.split(",") if food.strip()] if food_examples else []
+            
+            milestone_data = {
+                "gene_id": milestone.get("gene_id", ""),
+                "trait_name": milestone.get("trait_name", ""),
+                "focus_description": milestone.get("focus_description", ""),
+                "graphic_icon_id": milestone.get("graphic_icon_id", ""),
+                "food_examples": food_list
+            }
+            
+            age_groups[age_key]["milestones"].append(milestone_data)
+        
+        # Convert to sorted list (static roadmap structure)
+        roadmap = []
+        for age_key in sorted(age_groups.keys(), key=lambda x: int(x.split("-")[0])):
+            age_group = age_groups[age_key]
+            roadmap.append(age_group)
+        
+        return {
+            'child_id': child_id,
+            'birthday': birthday,  # Store birthday for future age calculations
+            'growth_genes': growth_genes,
+            'roadmap': roadmap
+        }

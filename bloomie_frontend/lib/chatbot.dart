@@ -4,7 +4,7 @@ import 'core/utils/logger.dart';
 import 'core/constants/app_colors.dart';
 import 'services/api_service.dart';
 import 'providers/auth_provider.dart';
-import 'screens/single_child_dashboard.dart';
+import 'main.dart';
 
 class ChatBotPage extends StatefulWidget {
   final List<ChatMessage>? initialMessages;
@@ -256,7 +256,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
             onPressed: () {
               Navigator.of(context).pop(); // Close dialog
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
+                MaterialPageRoute(builder: (context) => const Dashboard()),
               );
             },
             child: const Text(
@@ -502,7 +502,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
                   _buildChatBottomNavIcon('assets/images/home.png', const Color(0xFFFFE066), () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
+                      MaterialPageRoute(builder: (context) => const Dashboard()),
                     );
                   }),
                   _buildChatBottomNavIcon('assets/images/drbloom.png', const Color(0xFF98E4D6), () {
@@ -534,7 +534,11 @@ class _ChatBotPageState extends State<ChatBotPage> {
             CircleAvatar(
               backgroundColor: Colors.grey[300],
               radius: 20,
-              child: const Icon(Icons.smart_toy, color: Colors.white, size: 18),
+              child: Image.asset(
+                'assets/images/drbloom.png',
+                width: 18,
+                height: 18,
+              ),
             ),
             const SizedBox(width: 10),
           ],
@@ -570,11 +574,11 @@ class _ChatBotPageState extends State<ChatBotPage> {
           
           if (!message.isBot) ...[
             const SizedBox(width: 10),
-            // User avatar - using Baby Amy's photo
+            // User avatar - using selected child's photo
             CircleAvatar(
               backgroundColor: AppColors.secondary,
               radius: 20,
-              backgroundImage: AssetImage('assets/images/babyamy.jpg'),
+              backgroundImage: AssetImage(_getChildProfileImage(context)),
             ),
           ],
         ],
@@ -671,6 +675,34 @@ class _ChatBotPageState extends State<ChatBotPage> {
         ],
       ),
     );
+  }
+
+  // Helper function to get child profile image based on selected child
+  String _getChildProfileImage(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final childName = authProvider.selectedChild?.name;
+    
+    if (childName == null) return 'assets/images/default_child.png';
+    
+    // Hard-coded mapping for now - can be extended later
+    switch (childName.toLowerCase()) {
+      case 'amy':
+        return 'assets/images/babyamy.jpg';
+      case 'emma':
+        return 'assets/images/babyemma.jpg';
+      case 'lucas':
+        return 'assets/images/babylucas.jpg';
+      case 'sophia':
+        return 'assets/images/babysophia.jpg';
+      case 'noah':
+        return 'assets/images/babynoah.jpg';
+      case 'olivia':
+        return 'assets/images/babyolivia.jpg';
+      case 'nigolas':
+        return 'assets/images/babyamy.jpg'; // Using Amy's image for Nigolas for now
+      default:
+        return 'assets/images/babyamy.jpg'; // Use Amy's image as default
+    }
   }
 }
 

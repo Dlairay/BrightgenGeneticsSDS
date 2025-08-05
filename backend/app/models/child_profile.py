@@ -50,7 +50,11 @@ class ChildProfile:
             
             if not rows.empty:
                 for _, row in rows.iterrows():
-                    matched.append(row.to_dict())
+                    trait_dict = row.to_dict()
+                    # Ensure archetype field exists (it should already be in the data)
+                    if "archetype" not in trait_dict:
+                        trait_dict["archetype"] = ""  # Only add if missing
+                    matched.append(trait_dict)
         
         return matched
     
@@ -58,11 +62,33 @@ class ChildProfile:
         birthday_str = self.report.get("birthday")
         if birthday_str:
             try:
-                birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
+                # Try multiple date formats
+                date_formats = [
+                    "%Y-%m-%d",           # 2023-03-27
+                    "%d %B %Y",           # 27 March 2023
+                    "%d %b %Y",           # 27 Mar 2023
+                    "%B %d, %Y",          # March 27, 2023
+                    "%b %d, %Y",          # Mar 27, 2023
+                    "%m/%d/%Y",           # 03/27/2023
+                    "%d/%m/%Y",           # 27/03/2023
+                ]
+                
+                birth_date = None
+                for date_format in date_formats:
+                    try:
+                        birth_date = datetime.strptime(birthday_str, date_format).date()
+                        break
+                    except ValueError:
+                        continue
+                
+                if birth_date is None:
+                    print(f"Warning: Could not parse birthday '{birthday_str}' from report. Cannot derive age.")
+                    return None
+                
                 today = date.today()
                 age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
                 return age
-            except ValueError:
-                print(f"Warning: Could not parse birthday '{birthday_str}' from report. Cannot derive age.")
+            except Exception as e:
+                print(f"Warning: Error parsing birthday '{birthday_str}' from report: {e}")
                 return None
         return None

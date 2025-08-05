@@ -1,17 +1,17 @@
 import pandas as pd
 from typing import Optional
 
-from app.core.database import get_db
+from app.repositories.base_repository import BaseRepository
 
 
-class TraitRepository:
+class TraitRepository(BaseRepository):
     def __init__(self):
-        self.db = get_db()
-        self.collection = self.db.collection("trait_references")
+        super().__init__()
+        self.collection = self.get_collection("trait_references")
         self._cached_df: Optional[pd.DataFrame] = None
     
-    async def load_trait_db(self) -> pd.DataFrame:
-        if self._cached_df is not None:
+    async def load_trait_db(self, force_reload: bool = False) -> pd.DataFrame:
+        if self._cached_df is not None and not force_reload:
             return self._cached_df
         
         docs = self.collection.stream()

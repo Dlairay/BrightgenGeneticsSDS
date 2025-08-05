@@ -71,7 +71,11 @@ class _Question2ChoicesState extends State<Question2Choices> {
                       ),
                     ),
                   ),
-                  const Icon(Icons.person_outline, size: 28),
+                  Image.asset(
+                    'assets/images/profile.png',
+                    width: 28,
+                    height: 28,
+                  ),
                 ],
               ),
               const SizedBox(height: 24),

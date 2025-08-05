@@ -74,7 +74,7 @@ class _Question1SliderState extends State<Question1Slider> {
           onTap: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomePageQuestionnaireReminder()),
+              MaterialPageRoute(builder: (context) => const Dashboard()),
             );
           },
           child: Container(
@@ -84,10 +84,18 @@ class _Question1SliderState extends State<Question1Slider> {
               color: const Color(0xFFFDE6BE),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.chevron_left, color: Colors.black),
+            child: Image.asset(
+              'assets/images/footstep.png',
+              width: 24,
+              height: 24,
+            ),
           ),
         ),
-        const Icon(Icons.person_outline, size: 28),
+        Image.asset(
+          'assets/images/profile.png',
+          width: 28,
+          height: 28,
+        ),
       ],
     );
   }

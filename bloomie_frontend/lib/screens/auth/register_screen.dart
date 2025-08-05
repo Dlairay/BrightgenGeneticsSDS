@@ -6,7 +6,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/utils/validators.dart';
-import '../child_selector_screen.dart';
+import '../upload_genetic_report_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (success && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ChildSelectorScreen()),
+          MaterialPageRoute(builder: (context) => const UploadGeneticReportScreen(isFirstChild: true)),
         );
       }
     }
@@ -96,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     
                     // Welcome Text
                     Text(
-                      'Bloomie🌸',
+                      '',
                       style: AppTextStyles.h1.copyWith(fontSize: 32),
                     ),
                     const SizedBox(height: 8),
@@ -115,7 +115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       hint: 'Enter your full name',
                       controller: _nameController,
                       keyboardType: TextInputType.name,
-                      prefixIcon: Icons.person_outline,
+                      prefixIconPath: 'assets/images/profile.png',
                       validator: (value) => Validators.required(value, fieldName: 'Name'),
                       enabled: !authProvider.isLoading,
                     ),

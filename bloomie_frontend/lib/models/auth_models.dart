@@ -106,8 +106,16 @@ class Child {
     if (birthDate == null) return null;
     
     final now = DateTime.now();
-    final difference = now.difference(birthDate).inDays;
-    return (difference / 30).round(); // Approximate months
+    
+    // Calculate proper months difference
+    int months = (now.year - birthDate.year) * 12 + (now.month - birthDate.month);
+    
+    // Adjust if we haven't reached the birth day in the current month
+    if (now.day < birthDate.day) {
+      months--;
+    }
+    
+    return months;
   }
 }
 

@@ -40,7 +40,11 @@ class _Question3ButtonsState extends State<Question3Buttons> {
                       ),
                     ),
                   ),
-                  const Icon(Icons.person_outline, size: 28),
+                  Image.asset(
+                    'assets/images/profile.png',
+                    width: 28,
+                    height: 28,
+                  ),
                 ],
               ),
               const SizedBox(height: 24),

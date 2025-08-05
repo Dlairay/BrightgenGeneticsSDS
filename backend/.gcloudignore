@@ -7,24 +7,69 @@
 .git
 .gitignore
 
-# Python pycache:
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.pyc
 *.pyo
 *.pyd
 
-# Virtual environment
+# Virtual Environment
 venv/
+env/
+ENV/
+.venv/
 
-# Testing files
-test.py
-frontend.html
-
-# Backup files
-*_original.py
-migrate_to_refactored.py
-revert_migration.py
-
-# Sensitive files (should use Secret Manager in production)
-servicekey.json
+# Environment Variables & Secrets
 .env
+.env.*
+servicekey.json
+
+# Development Files
+frontend.html
+frontend_with_key.html
+README.md
+CLAUDE.md
+
+# Scripts (CI/CD - not needed in production)
+scripts/
+database/
+
+# Logs & Temporary Files
+*.log
+server.log
+logs/
+*.tmp
+*.temp
+*_new.csv
+*_backup.*
+
+# IDE & OS Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test_*.py
+
+# Documentation
+*.md
+!README.md
+
+# Docker (if using containers)
+# Dockerfile  # Commented out - we need this for Cloud Run builds
+.dockerignore

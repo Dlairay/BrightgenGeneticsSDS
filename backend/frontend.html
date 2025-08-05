@@ -25,7 +25,7 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             padding: 40px;
-            max-width: 500px;
+            max-width: 650px;
             width: 90%;
             text-align: center;
         }
@@ -110,6 +110,91 @@
             box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
         }
 
+        .btn-immunity {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        }
+
+        .btn-immunity:hover {
+            box-shadow: 0 5px 15px rgba(255, 154, 158, 0.4);
+        }
+
+        .btn-growth {
+            background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+        }
+
+        .btn-growth:hover {
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        /* Immunity Dashboard Styles */
+        .trait-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #ff9a9e;
+        }
+
+        .suggestion-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .suggestion-item.avoid {
+            border-left-color: #dc3545;
+        }
+
+        .suggestion-icon {
+            font-size: 20px;
+            margin-top: 2px;
+        }
+
+        .suggestion-content {
+            flex: 1;
+        }
+
+        .suggestion-text {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .suggestion-rationale {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .medical-log-item {
+            background: #e8f4fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+
+        .log-date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .log-summary {
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .log-details {
+            font-size: 14px;
+            color: #555;
+        }
+
         .recommendation-item {
             background: #f8f9fa;
             border-radius: 12px;
@@ -148,6 +233,19 @@
             margin: 15px 0;
             border-left: 4px solid #667eea;
             text-align: left;
+        }
+
+        .child-card .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .child-card .button-grid button {
+            margin: 0;
+            font-size: 14px;
+            padding: 8px 12px;
         }
 
         .child-card h3 {
@@ -416,6 +514,15 @@
         <!-- Dashboard Screen -->
         <div class="screen" id="dashboardScreen">
             <h1>👶 Your Children</h1>
+            
+            <!-- Latest Recommendations Widget -->
+            <div id="latestRecommendationsWidget" style="background: #f0f7ff; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none;">
+                <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 1.3em;">📌 Quick Overview - Latest Recommendations</h2>
+                <div id="latestRecommendationsContent">
+                    <p style="color: #666;">Loading recommendations...</p>
+                </div>
+            </div>
+            
             <div id="childrenList"></div>
             <button class="btn" onclick="showAddChild()">Add New Child</button>
             <button class="btn btn-secondary" onclick="logout()">Logout</button>
@@ -464,6 +571,13 @@
             <div id="historyContainer"></div>
             <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
         </div>
+        
+        <!-- Latest Recommendations Detail Screen -->
+        <div class="screen" id="latestRecommendationsScreen">
+            <h1>📌 Latest Recommendations</h1>
+            <div id="latestRecommendationsContainer"></div>
+            <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+        </div>
 
         <!-- Traits Display Screen -->
         <div class="screen" id="traitsScreen">
@@ -501,6 +615,30 @@
                 <div id="drBloomChatError"></div>
             </div>
         </div>
+
+        <!-- Immunity Dashboard Screen -->
+        <div class="screen" id="immunityScreen">
+            <h1 style="color: #FF6B6B;">🛡️ Immunity & Resilience Dashboard</h1>
+            <button class="btn btn-secondary" onclick="showDashboard()" style="margin-bottom: 20px;">← Back to Dashboard</button>
+            
+            <!-- Main Content Container -->
+            <div id="immunityContent"></div>
+            
+            <div id="immunityError"></div>
+        </div>
+
+        <!-- Growth Milestones Screen -->
+        <div class="screen" id="growthMilestonesScreen">
+            <h1 style="color: #4CAF50;">📈 Growth & Development Roadmap</h1>
+            <button class="btn btn-secondary" onclick="showDashboard()" style="margin-bottom: 20px;">← Back to Dashboard</button>
+            
+            <!-- Simple roadmap display -->
+            
+            <!-- Dynamic Content -->
+            <div id="growthContent"></div>
+            
+            <div id="growthError"></div>
+        </div>
     </div>
 
     <script>
@@ -513,8 +651,8 @@
         let selectedFile = null;
 
         // API base URL - change this to your FastAPI server URL
-        // const API_BASE = 'http://localhost:8000';
-        const API_BASE = 'https://child-profiling-api-271271835247.us-central1.run.app';
+        // const API_BASE = 'http://localhost:8000'; // Local development
+        const API_BASE = 'https://child-profiling-api-271271835247.us-central1.run.app'; // Production Cloud Run
 
         // Utility functions
         function showScreen(screenId) {
@@ -548,17 +686,34 @@
                 ...options.headers
             };
 
-            const response = await fetch(`${API_BASE}${endpoint}`, {
+            const fullUrl = `${API_BASE}${endpoint}`;
+            console.log('🌐 API CALL:', {
+                url: fullUrl,
+                method: options.method || 'GET',
+                headers: headers,
+                body: options.body
+            });
+
+            const response = await fetch(fullUrl, {
                 ...options,
                 headers
             });
 
+            console.log('📡 API RESPONSE:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+
             if (!response.ok) {
                 const error = await response.json();
+                console.log('❌ API ERROR RESPONSE:', error);
                 throw new Error(error.detail || 'API call failed');
             }
 
-            return response.json();
+            const result = await response.json();
+            console.log('✅ API SUCCESS RESPONSE:', result);
+            return result;
         }
 
         // Authentication functions
@@ -566,21 +721,27 @@
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
 
+            console.log('🔑 LOGIN ATTEMPT:', { email, password: password ? '[HIDDEN]' : 'EMPTY' });
+
             if (!email || !password) {
+                console.log('❌ LOGIN VALIDATION: Missing fields');
                 showError('loginError', 'Please fill in all fields');
                 return;
             }
 
             try {
+                console.log('📡 SENDING LOGIN REQUEST to:', `${API_BASE}/auth/login`);
                 const response = await apiCall('/auth/login', {
                     method: 'POST',
                     body: JSON.stringify({ email, password })
                 });
 
+                console.log('✅ LOGIN RESPONSE:', response);
                 authToken = response.access_token;
                 localStorage.setItem('authToken', authToken);
                 loadDashboard();
             } catch (error) {
+                console.log('❌ LOGIN ERROR:', error);
                 showError('loginError', error.message);
             }
         }
@@ -646,6 +807,12 @@
             try {
                 const children = await apiCall('/children');
                 displayChildren(children);
+                
+                // Load latest recommendations for the first child (if any)
+                if (children.length > 0) {
+                    loadLatestRecommendations(children[0].id);
+                }
+                
                 showScreen('dashboardScreen');
             } catch (error) {
                 showError('loginError', 'Failed to load dashboard');
@@ -658,6 +825,8 @@
             
             if (children.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #666;">No children added yet. Add your first child to get started!</p>';
+                // Hide recommendations widget if no children
+                document.getElementById('latestRecommendationsWidget').style.display = 'none';
                 return;
             }
 
@@ -666,12 +835,62 @@
                     <h3>${child.name || `Child ${child.id}`}</h3>
                     <p><strong>Gender:</strong> ${child.gender}</p>
                     <p><strong>Birthday:</strong> ${child.birthday}</p>
-                    <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
-                    <button class="btn btn-secondary" onclick="viewRecommendations('${child.id}')">View History</button>
-                    <button class="btn btn-secondary" onclick="viewTraits('${child.id}')">View Traits</button>
-                    <button class="btn btn-dr-bloom" onclick="openDrBloomConsultation('${child.id}')">Consult Dr. Bloom</button>
+                    <div class="button-grid">
+                        <button class="btn" onclick="startCheckIn('${child.id}')">Weekly Check-in</button>
+                        <button class="btn btn-secondary" onclick="viewRecommendations('${child.id}')">View History</button>
+                        <button class="btn btn-secondary" onclick="viewTraits('${child.id}')">View Traits</button>
+                        <button class="btn btn-immunity" onclick="viewImmunityDashboard('${child.id}')">Immunity & Resilience</button>
+                        <button class="btn btn-growth" onclick="viewGrowthMilestones('${child.id}')">Growth & Development</button>
+                        <button class="btn btn-dr-bloom" onclick="openDrBloomConsultation('${child.id}')">Consult Dr. Bloom</button>
+                    </div>
                 </div>
             `).join('');
+        }
+        
+        async function loadLatestRecommendations(childId) {
+            try {
+                const data = await apiCall(`/children/${childId}/latest-recommendations`);
+                displayLatestRecommendations(data);
+            } catch (error) {
+                console.error('Failed to load latest recommendations:', error);
+                document.getElementById('latestRecommendationsWidget').style.display = 'none';
+            }
+        }
+        
+        function displayLatestRecommendations(data) {
+            const widget = document.getElementById('latestRecommendationsWidget');
+            const content = document.getElementById('latestRecommendationsContent');
+            
+            if (!data.recommendations || data.recommendations.length === 0) {
+                content.innerHTML = `
+                    <p style="color: #666; margin: 0;">No recommendations yet for <strong>${data.child_name}</strong>. Complete a weekly check-in to get started!</p>
+                `;
+                widget.style.display = 'block';
+                return;
+            }
+            
+            const lastCheckInDate = data.last_check_in_date ? new Date(data.last_check_in_date).toLocaleDateString() : 'N/A';
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <p style="margin: 0;"><strong>${data.child_name}</strong> - Last check-in: ${lastCheckInDate}</p>
+                </div>
+                
+                <div style="display: grid; gap: 8px;">
+                    ${data.recommendations.map(rec => `
+                        <div style="background: white; border: 1px solid #e1e5e9; border-radius: 6px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #667eea; font-size: 0.95em;">${rec.trait_name}</strong>
+                            <span style="color: #333; font-size: 0.9em; text-align: right;">${rec.action}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div style="margin-top: 15px; text-align: center;">
+                    <button class="btn btn-secondary" onclick="viewLatestRecommendations('${data.child_id}')" style="font-size: 0.9em;">View Details</button>
+                </div>
+            `;
+            
+            widget.style.display = 'block';
         }
 
         // File upload functions
@@ -867,6 +1086,81 @@
             } catch (error) {
                 showError('uploadError', `Failed to load recommendations history: ${error.message}`);
             }
+        }
+        
+        async function viewLatestRecommendations(childId) {
+            try {
+                const data = await apiCall(`/children/${childId}/latest-recommendations-detail`);
+                displayLatestRecommendationsDetail(data);
+                showScreen('latestRecommendationsScreen');
+            } catch (error) {
+                document.getElementById('latestRecommendationsContainer').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <h3 style="color: #f44336;">Failed to load latest recommendations</h3>
+                        <p style="color: #666;">${error.message}</p>
+                    </div>
+                `;
+                showScreen('latestRecommendationsScreen');
+            }
+        }
+        
+        function displayLatestRecommendationsDetail(data) {
+            const container = document.getElementById('latestRecommendationsContainer');
+            
+            if (!data.recommendations || data.recommendations.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <h3>No Recommendations Available</h3>
+                        <p style="color: #666;">Complete a weekly check-in to get personalized recommendations for ${data.child_name}.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const lastCheckInDate = data.last_check_in_date ? new Date(data.last_check_in_date).toLocaleDateString() : 'N/A';
+            const entryTypeLabel = data.entry_type === 'initial' ? 'Initial Profile' : 'Weekly Check-in';
+            
+            container.innerHTML = `
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: #f0f7ff; border-radius: 12px; border: 2px solid #667eea;">
+                        <h2 style="color: #667eea; margin: 0 0 10px 0;">${data.child_name}</h2>
+                        <p style="color: #666; margin: 0;">
+                            <strong>${entryTypeLabel}</strong> - ${lastCheckInDate}
+                        </p>
+                        ${data.summary ? `<p style="color: #333; margin: 15px 0 0 0; font-style: italic;">"${data.summary}"</p>` : ''}
+                    </div>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        ${data.recommendations.map((rec, index) => `
+                            <div style="background: white; border: 2px solid #e1e5e9; border-radius: 12px; padding: 20px;">
+                                <h3 style="color: #667eea; margin: 0 0 15px 0;">${rec.trait || 'Unknown Trait'}</h3>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <h4 style="color: #333; margin: 0 0 8px 0; font-size: 1em;">🎯 Goal:</h4>
+                                    <p style="color: #555; margin: 0; line-height: 1.5;">${rec.goal || 'Support development'}</p>
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <h4 style="color: #333; margin: 0 0 8px 0; font-size: 1em;">📝 Activity:</h4>
+                                    <p style="color: #555; margin: 0; line-height: 1.6;">${rec.activity || 'No specific activity provided'}</p>
+                                </div>
+                                
+                                ${rec.tldr ? `
+                                    <div style="background: #f0f7ff; padding: 10px; border-radius: 8px; border-left: 4px solid #667eea;">
+                                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 0.9em;">💡 Quick Summary:</h4>
+                                        <p style="color: #333; margin: 0; font-weight: 500;">${rec.tldr}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                        <p style="color: #666; margin: 0 0 15px 0;">Want to see your complete recommendation history?</p>
+                        <button class="btn" onclick="viewRecommendations('${data.child_id}')">View Full History</button>
+                    </div>
+                </div>
+            `;
         }
 
         async function viewTraits(childId) {
@@ -1273,48 +1567,109 @@
                     })
                 });
                 
-                // Fetch the latest log entry to display it
-                const history = await apiCall(`/children/${currentChildId}/recommendations-history`);
-                // History is in ascending order (oldest first), so get the last entry
-                const latestLog = history[history.length - 1]; // Most recent entry
-                
-                // Show completion message with full log
+                // Show medical consultation completion message
                 const container = document.getElementById('recommendationsContainer');
-                container.innerHTML = `
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #4CAF50;">✅ Dr. Bloom Consultation Completed</h3>
-                        <p>${response.message}</p>
-                    </div>
-                    
-                    <div class="recommendation-item" style="border: 2px solid #667eea; padding: 20px; border-radius: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0; color: #667eea;">Dr. Bloom Consultation Log</h3>
-                            <p class="timestamp">${new Date().toLocaleDateString()} - dr_bloom</p>
-                        </div>
-                        
+                
+                if (response.medical_log) {
+                    // Display the actual medical log content
+                    const log = response.medical_log;
+                    container.innerHTML = `
                         <div style="margin-bottom: 20px;">
-                            <h4 style="color: #555; margin-bottom: 8px;">📝 Summary</h4>
-                            <p style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 0;">${latestLog ? latestLog.summary : response.summary}</p>
+                            <h3 style="color: #4CAF50;">✅ Dr. Bloom Consultation Completed</h3>
+                            <p>Here's what we discussed and some immediate steps you can take:</p>
                         </div>
                         
-                        ${latestLog && latestLog.recommendations && latestLog.recommendations.length > 0 ? `
-                            <div>
-                                <h4 style="color: #555; margin-bottom: 10px;">💡 Recommendations (${latestLog.recommendations.length})</h4>
-                                ${latestLog.recommendations.map(rec => `
-                                    <div style="background: #f0f4f8; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                                        <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                                            <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 10px;">${rec.trait}</span>
-                                            <strong style="color: #333;">${rec.goal}</strong>
-                                        </div>
-                                        <p style="margin: 5px 0 0 0; color: #555;">📌 ${rec.activity}</p>
-                                    </div>
-                                `).join('')}
+                        <div class="recommendation-item" style="border: 2px solid #ff6b6b; padding: 20px; border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="margin: 0; color: #ff6b6b;">📋 Consultation Summary</h3>
+                                <p class="timestamp">${new Date().toLocaleDateString()}</p>
                             </div>
-                        ` : '<p style="color: #666;">No specific recommendations generated.</p>'}
+                            
+                            ${log.emergency_warning ? `
+                                <div style="background: #ffebee; padding: 15px; border-radius: 8px; border: 2px solid #f44336; margin-bottom: 20px;">
+                                    <h4 style="color: #f44336; margin: 0;">⚠️ ${log.emergency_warning}</h4>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h4 style="color: #555; margin-bottom: 8px;">🩺 Problem Discussed</h4>
+                                <p style="background: #fff5f5; padding: 15px; border-radius: 8px; margin: 0; font-size: 16px; font-weight: 500;">
+                                    ${log?.problem_discussed || 'No problem discussed'}
+                                </p>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <h4 style="color: #555; margin-bottom: 8px;">✅ What You Can Do Right Now</h4>
+                                <ul style="margin: 0; padding-left: 25px;">
+                                    ${(log?.immediate_recommendations || []).map(rec => 
+                                        `<li style="margin-bottom: 8px; line-height: 1.5;">${rec || 'No recommendation available'}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                            
+                            ${log?.follow_up_questions && log.follow_up_questions.length > 0 ? `
+                                <div style="margin-bottom: 20px;">
+                                    <h4 style="color: #555; margin-bottom: 8px;">❓ Questions to Ask Your Doctor</h4>
+                                    <ol style="margin: 0; padding-left: 25px;">
+                                        ${log.follow_up_questions.map(q => 
+                                            `<li style="margin-bottom: 8px; line-height: 1.5;">${q || 'No question specified'}</li>`
+                                        ).join('')}
+                                    </ol>
+                                </div>
+                            ` : ''}
+                            
+                            ${log?.immunity_traits_mentioned && log.immunity_traits_mentioned.length > 0 ? `
+                                <div style="margin-bottom: 20px;">
+                                    <h4 style="color: #555; margin-bottom: 8px;">🧬 Related Genetic Traits</h4>
+                                    <p style="background: #e8f5e9; padding: 10px; border-radius: 8px; margin: 0;">
+                                        ${log.immunity_traits_mentioned.join(', ')}
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+                                <p style="margin: 0; font-size: 14px; color: #555; font-style: italic;">
+                                    <strong>Important:</strong> ${log?.disclaimer || 'Please consult with your healthcare provider for medical advice.'}
+                                </p>
+                            </div>
+                        </div>
                         
-                        ${response.conversation_deleted ? '<p style="color: #666; font-size: 14px; margin-top: 15px;"><em>💬 Conversation has been logged and deleted for privacy.</em></p>' : ''}
-                    </div>
-                `;
+                        <div style="margin-top: 20px; background: #f0f8ff; padding: 15px; border-radius: 8px;">
+                            <h4 style="color: #1976d2; margin: 0 0 10px 0;">💡 What's Next?</h4>
+                            <ul style="margin: 0; padding-left: 20px;">
+                                <li>Try the immediate recommendations above</li>
+                                <li>Monitor your child's symptoms over the next 24-48 hours</li>
+                                <li>If symptoms persist or worsen, consult your healthcare provider</li>
+                                <li>You can review this consultation in the Immunity & Resilience dashboard</li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    // No medical log was created
+                    container.innerHTML = `
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #4CAF50;">✅ Dr. Bloom Consultation Completed</h3>
+                            <p>${response.summary}</p>
+                        </div>
+                        
+                        <div class="recommendation-item" style="border: 2px solid #ff9800; padding: 20px; border-radius: 12px;">
+                            <div style="margin-bottom: 15px;">
+                                <h3 style="margin: 0; color: #ff9800;">📋 No Medical Log Created</h3>
+                            </div>
+                            
+                            <p style="margin-bottom: 15px;">No medical topics were detected in this conversation.</p>
+                            
+                            <div style="background: #fff3e0; padding: 15px; border-radius: 8px;">
+                                <h4 style="color: #ff9800; margin: 0 0 10px 0;">💡 Tips for Medical Consultations</h4>
+                                <ul style="margin: 0; padding-left: 20px; color: #666;">
+                                    <li>Dr. Bloom is designed for medical consultations</li>
+                                    <li>Discuss symptoms, health concerns, or medical questions</li>
+                                    <li>For general behavioral advice, use the Weekly Check-in feature</li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }
                 
                 // Reset session
                 currentDrBloomSessionId = null;
@@ -1328,6 +1683,352 @@
             }
         }
 
+
+        // Immunity dashboard functions
+        async function viewImmunityDashboard(childId) {
+            console.log('🛡️ IMMUNITY BUTTON CLICKED:', childId);
+            currentChildId = childId;
+            
+            try {
+                console.log('📱 SHOWING IMMUNITY SCREEN');
+                // Show loading state
+                document.getElementById('immunityContent').innerHTML = '<div style="text-align: center; padding: 40px;"><p>Loading immunity dashboard...</p></div>';
+                showScreen('immunityScreen');
+                
+                console.log('📡 FETCHING IMMUNITY DASHBOARD DATA');
+                // Fetch dashboard data
+                const dashboardData = await apiCall(`/immunity/${childId}/dashboard`);
+                
+                console.log('✅ IMMUNITY DATA RECEIVED:', dashboardData);
+                displayImmunityDashboard(dashboardData);
+                
+            } catch (error) {
+                console.log('❌ IMMUNITY DASHBOARD ERROR:', error);
+                document.getElementById('immunityContent').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <h3 style="color: #f44336;">Failed to load immunity dashboard</h3>
+                        <p style="color: #666;">${error.message}</p>
+                        <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayImmunityDashboard(dashboardData) {
+            console.log('🛡️ Dashboard data:', dashboardData);
+            console.log('🔍 Raw suggestions object:', dashboardData?.suggestions);
+            console.log('🔍 Raw medical_logs object:', dashboardData?.medical_logs);
+            
+            const suggestions = dashboardData?.suggestions || {};
+            const medical_logs = dashboardData?.medical_logs || {};
+            
+            console.log('📊 Processed suggestions:', suggestions);
+            console.log('📊 Processed medical_logs:', medical_logs);
+            
+            const child_name = suggestions?.child_name || 'Child';
+            const suggestions_by_trait = suggestions?.suggestions_by_trait || {};
+            const immunity_traits = suggestions?.immunity_traits || [];
+            
+            console.log('👶 Child name:', child_name);
+            console.log('🧬 Immunity traits:', immunity_traits);
+            console.log('💡 Suggestions by trait:', suggestions_by_trait);
+            
+            let content = `
+                <div style="margin-bottom: 20px;">
+                    <h2>🛡️ Immunity & Resilience Dashboard</h2>
+                    <h3>${child_name}</h3>
+                    <p style="color: #666;">Based on ${immunity_traits.length} genetic trait${immunity_traits.length !== 1 ? 's' : ''}</p>
+                </div>
+            `;
+            
+            // Display suggestions by trait
+            if (suggestions_by_trait && Object.keys(suggestions_by_trait).length > 0) {
+                content += `
+                    <div class="immunity-section">
+                        <h3>📋 Personalized Suggestions</h3>
+                `;
+                
+                for (const [traitName, suggestions] of Object.entries(suggestions_by_trait)) {
+                    console.log(`🧬 Processing trait: ${traitName}`, suggestions);
+                    content += `
+                        <div class="trait-suggestions">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">${traitName}</h4>
+                    `;
+                    
+                    suggestions.forEach((suggestion, index) => {
+                        console.log(`💡 Suggestion ${index} for ${traitName}:`, suggestion);
+                        console.log(`🔍 All suggestion keys:`, Object.keys(suggestion || {}));
+                        
+                        // Try different possible field names
+                        const suggestion_type = suggestion?.suggestion_type || suggestion?.type || suggestion?.category || 'Unknown';
+                        const suggestion_text = suggestion?.suggestion || suggestion?.text || suggestion?.recommendation || 'No suggestion available';
+                        const rationale = suggestion?.rationale || suggestion?.reason || suggestion?.explanation || 'No rationale provided';
+                        
+                        console.log(`   - Type: "${suggestion_type}" (from field: ${suggestion?.suggestion_type ? 'suggestion_type' : suggestion?.type ? 'type' : suggestion?.category ? 'category' : 'none found'})`);
+                        console.log(`   - Text: "${suggestion_text}"`);
+                        console.log(`   - Rationale: "${rationale}"`);
+                        
+                        const icon = suggestion_type === 'Provide' ? '✅' : '❌';
+                        const iconClass = suggestion_type === 'Provide' ? 'provide' : 'avoid';
+                        
+                        content += `
+                            <div class="suggestion-item ${iconClass}">
+                                <div class="suggestion-header">
+                                    <span class="suggestion-icon">${icon}</span>
+                                    <span class="suggestion-type">${suggestion_type}</span>
+                                    <span class="suggestion-text">${suggestion_text}</span>
+                                </div>
+                                <div class="suggestion-rationale">
+                                    <strong>Rationale:</strong> ${rationale}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    content += '</div>';
+                }
+                
+                content += '</div>';
+            } else {
+                content += `
+                    <div class="immunity-section">
+                        <h3>📋 Personalized Suggestions</h3>
+                        <p style="color: #666; text-align: center; padding: 20px;">No immunity & resilience traits found for this child.</p>
+                    </div>
+                `;
+            }
+            
+            // Display medical logs
+            content += `
+                <div class="immunity-section">
+                    <h3>🏥 Medical Visit Logs</h3>
+            `;
+            
+            const logs = medical_logs?.logs || [];
+            console.log('📋 Medical logs array:', logs);
+            console.log('📋 Number of logs:', logs.length);
+            console.log('⚠️ Has emergency indicators:', medical_logs?.has_emergency_indicators);
+            
+            if (logs.length > 0) {
+                if (medical_logs?.has_emergency_indicators) {
+                    content += '<div style="background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 15px; margin-bottom: 20px;"><strong style="color: #f44336;">⚠️ Emergency indicators found in recent logs. Please consult your doctor.</strong></div>';
+                }
+                
+                logs.forEach((log, logIndex) => {
+                    console.log(`📋 Processing log ${logIndex}:`, log);
+                    const logDate = log?.date ? new Date(log.date).toLocaleDateString() : 'Unknown date';
+                    const conversationDate = log?.conversation_date ? new Date(log.conversation_date).toLocaleDateString() : logDate;
+                    
+                    console.log(`   📅 Log date: "${logDate}"`);
+                    console.log(`   📅 Conversation date: "${conversationDate}"`);
+                    console.log(`   🩺 Problem discussed: "${log?.problem_discussed}"`);
+                    console.log(`   ✅ Immediate recommendations:`, log?.immediate_recommendations);
+                    console.log(`   ❓ Follow up questions:`, log?.follow_up_questions);
+                    console.log(`   🧬 Immunity traits mentioned:`, log?.immunity_traits_mentioned);
+                    console.log(`   ⚠️ Emergency warning: "${log?.emergency_warning}"`);
+                    console.log(`   📝 Disclaimer: "${log?.disclaimer}"`);
+                    
+                    content += `
+                        <div class="medical-log-item">
+                            <div class="log-header">
+                                <h4>Medical Log - ${conversationDate}</h4>
+                                <small style="color: #666;">Generated: ${logDate}</small>
+                            </div>
+                            
+                            ${(log?.primary_concerns && log.primary_concerns.length > 0) ? `
+                                <div class="log-section">
+                                    <strong>Primary Concerns:</strong>
+                                    <ul>
+                                        ${log.primary_concerns.map(concern => `<li>${concern || 'No concern specified'}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="log-section">
+                                <strong>Summary:</strong>
+                                <p>${log?.summary || 'No summary available'}</p>
+                            </div>
+                            
+                            ${(log?.traits_discussed && log.traits_discussed.length > 0) ? `
+                                <div class="log-section">
+                                    <strong>Immunity Traits Discussed:</strong>
+                                    <div class="traits-tags">
+                                        ${log.traits_discussed.map(trait => `<span class="trait-tag">${trait || 'Unknown trait'}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${(log?.questions_for_doctor && log.questions_for_doctor.length > 0) ? `
+                                <div class="log-section">
+                                    <strong>Questions for Doctor:</strong>
+                                    <ul>
+                                        ${log.questions_for_doctor.map(question => `<li>${question || 'No question specified'}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${(log?.emergency_indicators && log.emergency_indicators.length > 0) ? `
+                                <div class="log-section emergency">
+                                    <strong style="color: #f44336;">⚠️ Emergency Indicators:</strong>
+                                    <ul>
+                                        ${log.emergency_indicators.map(indicator => `<li style="color: #f44336;">${indicator || 'No indicator specified'}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                content += '<p style="color: #666; text-align: center; padding: 20px;">No medical logs yet. Logs are created when Dr. Bloom discussions involve immunity-related topics.</p>';
+            }
+            
+            content += '</div>';
+            
+            
+            console.log('🎨 Final rendered HTML content:', content);
+            document.getElementById('immunityContent').innerHTML = content;
+        }
+
+        // Growth Milestones functions
+        let currentGrowthTab = 'overview';
+        
+        async function viewGrowthMilestones(childId) {
+            console.log('📈 GROWTH MILESTONES BUTTON CLICKED:', childId);
+            currentChildId = childId;
+            
+            try {
+                console.log('📱 SHOWING GROWTH MILESTONES SCREEN');
+                // Show loading state
+                document.getElementById('growthContent').innerHTML = '<div style="text-align: center; padding: 40px;"><p>Loading growth roadmap...</p></div>';
+                showScreen('growthMilestonesScreen');
+                
+                // Load roadmap directly
+                const response = await apiCall(`/growth-milestones/${childId}/roadmap`);
+                console.log('✅ GROWTH ROADMAP RECEIVED:', response);
+                
+                document.getElementById('growthContent').innerHTML = displayFullRoadmap(response.data);
+                
+            } catch (error) {
+                console.log('❌ GROWTH MILESTONES ERROR:', error);
+                document.getElementById('growthContent').innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #f44336;">Failed to load growth milestones</h3>
+                        <p>${error.message}</p>
+                        <button class="btn" onclick="showDashboard()">Back to Dashboard</button>
+                    </div>
+                `;
+            }
+        }
+        
+        
+        function displayFullRoadmap(data) {
+            const { child_name, current_age, roadmap } = data;
+            
+            if (!roadmap || roadmap.length === 0) {
+                return `
+                    <div style="text-align: center; padding: 40px;">
+                        <h3>No Growth Roadmap Available</h3>
+                        <p style="color: #666;">No Growth & Development genetic traits found for this child.</p>
+                    </div>
+                `;
+            }
+            
+            let content = `
+                <div style="max-width: 900px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2>🗺️ ${child_name}'s Complete Growth Roadmap</h2>
+                        <p style="color: #666;">Journey through all age-based recommendations</p>
+                    </div>
+                    
+                    <div style="position: relative;">
+            `;
+            
+            roadmap.forEach((ageGroup, index) => {
+                const isLast = index === roadmap.length - 1;
+                let statusColor, statusIcon, statusText;
+                
+                if (ageGroup.is_past) {
+                    statusColor = '#2196f3';
+                    statusIcon = '✅';
+                    statusText = 'Completed';
+                } else if (ageGroup.is_current) {
+                    statusColor = '#4caf50';
+                    statusIcon = '🎯';
+                    statusText = 'Current Focus';
+                } else {
+                    statusColor = '#ff9800';
+                    statusIcon = '⏳';
+                    statusText = 'Upcoming';
+                }
+                
+                content += `
+                    <div style="position: relative; margin-bottom: ${isLast ? '0' : '40px'};">
+                        <!-- Timeline line -->
+                        ${!isLast ? `<div style="position: absolute; left: 20px; top: 60px; width: 2px; height: 100%; background: #e0e0e0; z-index: 1;"></div>` : ''}
+                        
+                        <!-- Timeline dot -->
+                        <div style="position: absolute; left: 12px; top: 20px; width: 16px; height: 16px; background: ${statusColor}; border-radius: 50%; z-index: 2;"></div>
+                        
+                        <!-- Content card -->
+                        <div style="margin-left: 50px; background: white; border: 2px solid ${statusColor}; border-radius: 12px; padding: 20px; ${ageGroup.is_current ? 'box-shadow: 0 4px 16px rgba(76, 175, 80, 0.3);' : ''}">
+                            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+                                <div>
+                                    <h3 style="color: ${statusColor}; margin: 0;">Ages ${ageGroup.age_start}-${ageGroup.age_end} ${statusIcon}</h3>
+                                    <p style="color: #666; font-size: 14px; margin: 5px 0 0 0;">${statusText}</p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <p style="color: #333; font-weight: 500;">${ageGroup.milestones.length} recommendation${ageGroup.milestones.length !== 1 ? 's' : ''} for this age group</p>
+                            </div>
+                            
+                            <div style="display: grid; gap: 15px;">
+                `;
+                
+                ageGroup.milestones.forEach(milestone => {
+                    const iconMap = {
+                        'brain_icon': '🧠', 'tummy_icon': '🤱', 'energy_icon': '⚡', 'shield_icon': '🛡️',
+                        'health_icon': '💪', 'idea_icon': '💡', 'school_icon': '🎒', 'choices_icon': '🤔',
+                        'balance_icon': '⚖️', 'battery_icon': '🔋'
+                    };
+                    const icon = iconMap[milestone.graphic_icon_id] || '📈';
+                    
+                    content += `
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border-left: 4px solid ${statusColor};">
+                            <div style="display: flex; align-items: start; gap: 10px;">
+                                <span style="font-size: 20px;">${icon}</span>
+                                <div style="flex: 1;">
+                                    <h4 style="color: #333; margin: 0 0 5px 0;">${milestone.trait_name} (${milestone.gene_id})</h4>
+                                    <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 0 0 10px 0;">${milestone.focus_description}</p>
+                                    
+                                    ${milestone.food_examples && milestone.food_examples.length > 0 ? `
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                            ${milestone.food_examples.slice(0, 4).map(food => 
+                                                `<span style="background: ${statusColor}; color: white; padding: 2px 6px; border-radius: 12px; font-size: 11px;">${food.replace(/_/g, ' ')}</span>`
+                                            ).join('')}
+                                            ${milestone.food_examples.length > 4 ? `<span style="color: #666; font-size: 11px;">+${milestone.food_examples.length - 4} more</span>` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            return content;
+        }
 
         // Allow Enter key to send message
         document.addEventListener('DOMContentLoaded', function() {

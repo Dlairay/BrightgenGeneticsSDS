@@ -5,11 +5,17 @@ import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import '../models/auth_models.dart';
 import 'upload_genetic_report_screen.dart';
-import 'single_child_dashboard.dart';
+import '../main.dart';
 import 'auth/login_screen.dart';
+import '../core/utils/no_animation_route.dart';
 
 class ChildSelectorScreen extends StatelessWidget {
-  const ChildSelectorScreen({super.key});
+  final bool showWelcomeBack;
+  
+  const ChildSelectorScreen({
+    super.key, 
+    this.showWelcomeBack = false,
+  });
 
   void _selectChild(BuildContext context, Child child) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -17,15 +23,18 @@ class ChildSelectorScreen extends StatelessWidget {
     
     // Navigate back to dashboard with selected child
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
+      NoAnimationPageRoute(builder: (context) => const Dashboard()),
     );
   }
 
   void _addNewChild(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isFirstChild = authProvider.children.isEmpty;
+    
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const UploadGeneticReportScreen(),
+      NoAnimationPageRoute(
+        builder: (context) => UploadGeneticReportScreen(isFirstChild: isFirstChild),
       ),
     );
   }
@@ -45,12 +54,19 @@ class ChildSelectorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Consumer<AuthProvider>(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bloomie_background3.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
             final user = authProvider.currentUser;
             final selectedChild = authProvider.selectedChild;
+            
             
             if (user == null) {
               return const Center(child: Text('No user data available'));
@@ -83,25 +99,14 @@ class ChildSelectorScreen extends StatelessWidget {
                         style: AppTextStyles.h1.copyWith(fontSize: 28),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Welcome back, ${user.name}',
-                            style: AppTextStyles.bodySmall,
-                          ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            onPressed: () => _logout(context),
-                            icon: const Icon(Icons.logout, size: 20),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.red.shade50,
-                              foregroundColor: Colors.red.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
+                      if (showWelcomeBack) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Welcome back, ${user.name}',
+                          style: AppTextStyles.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ],
                   ),
                   
@@ -109,30 +114,133 @@ class ChildSelectorScreen extends StatelessWidget {
                   
                   // Children List (Netflix-style with + button)
                   Expanded(
-                    child: authProvider.children.isEmpty
-                        ? _buildNoChildrenView(context)
-                        : _buildChildrenGridWithAddButton(context, authProvider.children, selectedChild),
+                    child: authProvider.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : authProvider.children.isEmpty
+                            ? _buildNoChildrenView(context)
+                            : _buildChildrenGridWithAddButton(context, authProvider.children, selectedChild),
+                  ),
+                  
+                  // Bottom buttons (Settings and Logout)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 40, top: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Settings button
+                        GestureDetector(
+                          onTap: () {
+                            // Settings functionality to be implemented later
+                          },
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Image.asset(
+                                'assets/images/setting_icon.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 30),
+                        
+                        // Logout button
+                        GestureDetector(
+                          onTap: () => _logout(context),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.logout,
+                              color: Colors.red.shade700,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             );
           },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNoChildrenView(BuildContext context) {
-    // If no children, automatically redirect to add child screen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const UploadGeneticReportScreen()),
-      );
-    });
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    // Only auto-redirect if we truly have no children AND no selected child
+    // If we have a selected child but empty children list, it's a data loading issue
+    if (authProvider.selectedChild == null && authProvider.children.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          NoAnimationPageRoute(builder: (context) => const UploadGeneticReportScreen(isFirstChild: true)),
+        );
+      });
+      
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    } else {
+      // We have a selected child but children list is empty - data loading issue
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.refresh, size: 48, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'Loading children data...',
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await authProvider.forceRefresh();
+              },
+              child: const Text('Refresh'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                NoAnimationPageRoute(builder: (context) => const Dashboard()),
+              ),
+              child: const Text('Back to Dashboard'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildChildrenGridWithAddButton(BuildContext context, List<Child> children, Child? selectedChild) {
@@ -168,7 +276,7 @@ class ChildSelectorScreen extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: AppColors.withOpacity(Colors.black, 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -210,7 +318,7 @@ class ChildSelectorScreen extends StatelessWidget {
       onTap: () => _selectChild(context, child),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+          color: isSelected ? AppColors.withOpacity(AppColors.primary, 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : Colors.grey.shade300,
@@ -218,7 +326,7 @@ class ChildSelectorScreen extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: AppColors.withOpacity(Colors.black, 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -302,130 +410,4 @@ class ChildSelectorScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChildrenGrid(BuildContext context, List<Child> children, Child? selectedChild) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.8,
-      ),
-      itemCount: children.length,
-      itemBuilder: (context, index) {
-        final child = children[index];
-        final isSelected = selectedChild?.id == child.id;
-        
-        return GestureDetector(
-          onTap: () => _selectChild(context, child),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.grey.shade300,
-                width: isSelected ? 3 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Child Avatar
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.grey.shade300,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        child.name.isNotEmpty ? child.name[0].toUpperCase() : '?',
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey.shade600,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Child Name
-                  Text(
-                    child.name.isEmpty ? 'Child ${child.id}' : child.name,
-                    style: AppTextStyles.h3.copyWith(
-                      color: isSelected ? AppColors.primary : Colors.black,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Child Info
-                  if (child.ageInMonths != null) ...[
-                    Text(
-                      '${child.ageInMonths} months old',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ] else if (child.birthday != null) ...[
-                    Text(
-                      'Born: ${child.birthday}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  
-                  if (child.gender != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      child.gender!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  
-                  if (isSelected) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'SELECTED',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }

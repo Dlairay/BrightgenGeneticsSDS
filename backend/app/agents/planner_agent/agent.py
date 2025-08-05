@@ -18,6 +18,13 @@ import datetime
 # Suppress warnings and logs below ERROR
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
+
+# Suppress Google ADK verbose logs
+logging.getLogger('google_adk').setLevel(logging.ERROR)
+logging.getLogger('google.adk').setLevel(logging.ERROR)
+logging.getLogger('google_genai').setLevel(logging.ERROR)
+logging.getLogger('google.genai').setLevel(logging.ERROR)
+
 load_dotenv()
 
 # These imports are only needed for the LogGenerationService class 
@@ -27,6 +34,7 @@ class Recommendation(BaseModel):
     trait: str
     goal: str
     activity: str
+    tldr: str  # Short 5-10 word summary for quick overview
 
 class FollowupQuestion(BaseModel):
     question: str
@@ -35,7 +43,7 @@ class FollowupQuestion(BaseModel):
 class LogEntry(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True) 
 
-    entry_type: Literal["initial", "checkin", "emergency"]
+    entry_type: Literal["initial", "checkin"]
     interpreted_traits: List[str]
     recommendations: List[Recommendation]
     summary: str
@@ -223,10 +231,10 @@ Receive a JSON payload with keys:
 Your output must be exactly one JSON object matching this schema (no markdown or fences):
 
 {
-  "entry_type": "initial" | "checkin" | "dr_bloom",
+  "entry_type": "initial" | "checkin",
   "interpreted_traits": [string, …],
   "recommendations": [
-    { "trait": string, "goal": string, "activity": string }, …
+    { "trait": string, "goal": string, "activity": string, "tldr": string }, …
   ],
   "summary": string,
     "followup_questions": [
@@ -241,6 +249,7 @@ Your output must be exactly one JSON object matching this schema (no markdown or
 • Options should cover the most likely parent answers.
 • Use simple, mutually-exclusive choices.
 • Incorporate 'age' and 'gender' into recommendations and summary if they are provided in the input payload.
+• For each recommendation, the 'tldr' field must be a concise 5-10 word summary of the activity (e.g., "memory games and puzzles", "storytelling activities", "sorting games by color")
 """
 )
 

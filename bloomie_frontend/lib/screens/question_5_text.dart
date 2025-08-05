@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../homepage_a_q.dart';
+import '../main.dart';
 import '../core/utils/logger.dart';
 
 class Question5TextInput extends StatefulWidget {
@@ -21,7 +21,7 @@ class _Question5TextInputState extends State<Question5TextInput> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => const BloomieHomePage(),
+        builder: (context) => const Dashboard(),
       ),
     );
   }

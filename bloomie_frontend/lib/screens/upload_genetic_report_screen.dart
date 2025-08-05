@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/widgets/custom_button.dart';
 import '../core/widgets/custom_text_field.dart';
 import '../core/utils/logger.dart';
-import 'single_child_dashboard.dart';
+import '../core/utils/no_animation_route.dart';
+import '../providers/auth_provider.dart';
+import '../main.dart';
+import 'traits_screen.dart';
 
 class UploadGeneticReportScreen extends StatefulWidget {
-  const UploadGeneticReportScreen({super.key});
+  final bool isFirstChild;
+  
+  const UploadGeneticReportScreen({
+    super.key,
+    this.isFirstChild = false,
+  });
 
   @override
   State<UploadGeneticReportScreen> createState() => _UploadGeneticReportScreenState();
@@ -57,10 +64,16 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
   }
   
   Future<void> _uploadReport() async {
+    AppLogger.info('Upload attempt started');
+    AppLogger.info('Form valid: ${_formKey.currentState!.validate()}');
+    AppLogger.info('Selected file path: ${_selectedFile?.path}');
+    AppLogger.info('Child name: ${_childNameController.text.trim()}');
+    
     if (!_formKey.currentState!.validate() || _selectedFile?.path == null) {
       setState(() {
         _errorMessage = 'Please provide child name and select a file';
       });
+      AppLogger.error('Upload validation failed');
       return;
     }
     
@@ -85,12 +98,36 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
       
       AppLogger.info('Upload successful: ${result.toString()}');
       
-      // Show success and navigate back after delay
+      // Refresh children list and select the newly created child
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.refreshUserData();
+      
+      // Find and select the newly created child by ID from the upload response
+      if (result['child_id'] != null) {
+        final newChildId = result['child_id'];
+        final newChild = authProvider.children.firstWhere(
+          (child) => child.id == newChildId,
+          orElse: () => authProvider.children.isNotEmpty ? authProvider.children.first : throw Exception('No child found'),
+        );
+        authProvider.selectChild(newChild);
+        AppLogger.info('Selected new child: ${newChild.name} (${newChild.id})');
+      }
+      
+      // Show success and navigate after delay
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
-        );
+        if (widget.isFirstChild) {
+          // Navigate to traits screen for first child
+          final childId = result['child_id'] ?? '';
+          Navigator.of(context).pushReplacement(
+            NoAnimationPageRoute(builder: (context) => TraitsScreen(childId: childId)),
+          );
+        } else {
+          // Navigate back to dashboard for additional children
+          Navigator.of(context).pushReplacement(
+            NoAnimationPageRoute(builder: (context) => const Dashboard()),
+          );
+        }
       }
       
     } catch (e) {
@@ -105,7 +142,7 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
   
   void _navigateBack() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
+      NoAnimationPageRoute(builder: (context) => const Dashboard()),
     );
   }
   
@@ -186,16 +223,23 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
                       ),
                       borderRadius: BorderRadius.circular(8),
                       color: _selectedFile != null 
-                          ? AppColors.primary.withOpacity(0.1)
+                          ? AppColors.withOpacity(AppColors.primary, 0.1)
                           : Colors.transparent,
                     ),
                     child: Column(
                       children: [
-                        Icon(
-                          _selectedFile != null ? Icons.check_circle : Icons.upload_file,
-                          size: 48,
-                          color: _selectedFile != null ? Colors.green : AppColors.primary,
-                        ),
+                        _selectedFile != null 
+                            ? Icon(
+                                Icons.check_circle,
+                                size: 48,
+                                color: Colors.green,
+                              )
+                            : Image.asset(
+                                'assets/images/uploadfiles.png',
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.contain,
+                              ),
                         const SizedBox(height: 12),
                         Text(
                           _selectedFile != null 
@@ -292,15 +336,18 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
                       backgroundColor: AppColors.primary,
                     ),
                     
-                    const SizedBox(height: 16),
-                    
-                    CustomButton(
-                      text: 'Back to Dashboard',
-                      onPressed: _isUploading ? null : _navigateBack,
-                      width: double.infinity,
-                      backgroundColor: Colors.grey.shade400,
-                      textColor: Colors.white,
-                    ),
+                    // Only show back button if this is not the first child
+                    if (!widget.isFirstChild) ...[
+                      const SizedBox(height: 16),
+                      
+                      CustomButton(
+                        text: 'Back to Dashboard',
+                        onPressed: _isUploading ? null : _navigateBack,
+                        width: double.infinity,
+                        backgroundColor: Colors.grey.shade400,
+                        textColor: Colors.white,
+                      ),
+                    ],
                   ],
                 ),
               ],

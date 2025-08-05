@@ -146,38 +146,6 @@ class SingleChildDashboard extends StatelessWidget {
                   ),
                 ),
               ),
-              // Profile icon positioned on the right - NOW OPENS CHILD SELECTOR
-              Positioned(
-                right: 0,
-                top: 3,
-                child: GestureDetector(
-                  onTap: () => _openChildSelector(context),
-                  child: ClipOval(
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          selectedChild.name.isNotEmpty ? selectedChild.name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -446,16 +414,7 @@ class SingleChildDashboard extends StatelessWidget {
       width: 380,
       height: 240,
       decoration: const BoxDecoration(
-        color: Color(0xFFFFEFD3),
-        borderRadius: BorderRadius.all(Radius.circular(21)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x3F000000),
-            blurRadius: 4,
-            offset: Offset(0, 4),
-            spreadRadius: 0,
-          ),
-        ],
+        color: Colors.transparent,
       ),
       child: Stack(
         children: [

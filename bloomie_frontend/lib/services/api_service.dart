@@ -6,10 +6,10 @@ import 'mock_api_service.dart';
 
 class ApiService {
   static late Dio _dio;
-  // Using the actual API base URL from frontend.html
+  // Using the actual deployed Cloud Run service URL (matching frontend.html)
   static const String baseUrl = 'https://child-profiling-api-271271835247.us-central1.run.app';
   static const String apiKey = 'secure-api-key-2025';
-  static const bool useMockData = false; // Using real API from frontend.html
+  static const bool useMockData = false; // Connected to real Cloud Run backend
   
   static void init() {
     _dio = Dio(BaseOptions(
@@ -48,6 +48,15 @@ class ApiService {
       },
       onError: (error, handler) {
         AppLogger.error('API Error: ${error.message}', error: error);
+        
+        // Handle 401 authentication errors
+        if (error.response?.statusCode == 401) {
+          AppLogger.warning('401 Authentication error - clearing stored token');
+          // Clear stored auth tokens on 401 responses
+          StorageService.deleteSecureData(StorageService.keyAuthToken);
+          StorageService.deleteSecureData(StorageService.keyUserEmail);
+        }
+        
         handler.next(error);
       },
     ));
@@ -234,6 +243,162 @@ class ApiService {
     try {
       AppLogger.info('Fetching traits for child: $childId');
       final response = await _dio.get('/children/$childId/traits');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Latest Recommendations endpoints (new backend feature)
+  static Future<Map<String, dynamic>> getLatestRecommendations(String childId) async {
+    try {
+      // Check if auth token exists before making the request
+      final token = await StorageService.getSecureData(StorageService.keyAuthToken);
+      if (token == null || token.isEmpty) {
+        AppLogger.warning('No auth token available for getLatestRecommendations');
+        // Return empty data instead of throwing error to prevent crash
+        return {
+          'recommendations': [],
+          'last_check_in': null,
+          'message': 'Authentication required'
+        };
+      }
+      
+      AppLogger.info('Fetching latest recommendations for child: $childId');
+      final response = await _dio.get('/children/$childId/latest-recommendations');
+      return response.data;
+    } on DioException catch (e) {
+      // If it's an authentication error, return empty data instead of throwing
+      if (e.response?.statusCode == 403 || e.response?.statusCode == 401) {
+        AppLogger.warning('Authentication error in getLatestRecommendations: ${e.response?.statusCode}');
+        return {
+          'recommendations': [],
+          'last_check_in': null,
+          'message': 'Authentication required'
+        };
+      }
+      throw _handleError(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getLatestRecommendationsDetail(String childId) async {
+    try {
+      // Check if auth token exists before making the request
+      final token = await StorageService.getSecureData(StorageService.keyAuthToken);
+      if (token == null || token.isEmpty) {
+        AppLogger.warning('No auth token available for getLatestRecommendationsDetail');
+        // Return empty data instead of throwing error to prevent crash
+        return {
+          'recommendations': [],
+          'last_check_in': null,
+          'message': 'Authentication required'
+        };
+      }
+      
+      AppLogger.info('Fetching latest recommendations detail for child: $childId');
+      final response = await _dio.get('/children/$childId/latest-recommendations-detail');
+      return response.data;
+    } on DioException catch (e) {
+      // If it's an authentication error, return empty data instead of throwing
+      if (e.response?.statusCode == 403 || e.response?.statusCode == 401) {
+        AppLogger.warning('Authentication error in getLatestRecommendationsDetail: ${e.response?.statusCode}');
+        return {
+          'recommendations': [],
+          'last_check_in': null,
+          'message': 'Authentication required'
+        };
+      }
+      throw _handleError(e);
+    }
+  }
+
+  // Immunity & Resilience Dashboard endpoints (new backend feature)
+  static Future<Map<String, dynamic>> getImmunityDashboard(String childId) async {
+    try {
+      AppLogger.info('Fetching immunity dashboard for child: $childId');
+      final response = await _dio.get('/immunity/$childId/dashboard');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getImmunitySuggestions(String childId) async {
+    try {
+      AppLogger.info('Fetching immunity suggestions for child: $childId');
+      final response = await _dio.get('/immunity/$childId/suggestions');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<List<dynamic>> getImmunityTraits(String childId) async {
+    try {
+      AppLogger.info('Fetching immunity traits for child: $childId');
+      final response = await _dio.get('/immunity/$childId/traits');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Growth & Development Milestones endpoints (new backend feature)
+  static Future<Map<String, dynamic>> getGrowthMilestonesOverview(String childId) async {
+    try {
+      AppLogger.info('Fetching growth milestones overview for child: $childId');
+      final response = await _dio.get('/growth-milestones/$childId/overview');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCurrentGrowthMilestones(String childId) async {
+    try {
+      AppLogger.info('Fetching current growth milestones for child: $childId');
+      final response = await _dio.get('/growth-milestones/$childId/current');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getGrowthMilestonesRoadmap(String childId) async {
+    try {
+      AppLogger.info('Fetching growth milestones roadmap for child: $childId');
+      final response = await _dio.get('/growth-milestones/$childId/roadmap');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Medical Logs endpoints (new backend feature)
+  static Future<List<dynamic>> getMedicalLogs(String childId) async {
+    try {
+      AppLogger.info('Fetching medical logs for child: $childId');
+      final response = await _dio.get('/medical-logs/$childId');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getMedicalLog(String childId, String logId) async {
+    try {
+      AppLogger.info('Fetching medical log $logId for child: $childId');
+      final response = await _dio.get('/medical-logs/$childId/log/$logId');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  static Future<List<dynamic>> getMedicalLogsByTrait(String childId, String trait) async {
+    try {
+      AppLogger.info('Fetching medical logs by trait $trait for child: $childId');
+      final response = await _dio.get('/medical-logs/$childId/by-trait/$trait');
       return response.data;
     } on DioException catch (e) {
       throw _handleError(e);

@@ -11,6 +11,7 @@ class CustomButton extends StatelessWidget {
   final double height;
   final bool isLoading;
   final IconData? icon;
+  final String? iconPath;
   
   const CustomButton({
     super.key,
@@ -22,6 +23,7 @@ class CustomButton extends StatelessWidget {
     this.height = 56,
     this.isLoading = false,
     this.icon,
+    this.iconPath,
   });
   
   @override
@@ -61,9 +63,11 @@ class CustomButton extends StatelessWidget {
                       color: textColor ?? Colors.white,
                     ),
                   ),
-                  if (icon != null) ...[
+                  if (icon != null || iconPath != null) ...[
                     const SizedBox(width: 8),
-                    Icon(icon, size: 18),
+                    iconPath != null 
+                        ? Image.asset(iconPath!, width: 18, height: 18)
+                        : Icon(icon, size: 18),
                   ],
                 ],
               ),

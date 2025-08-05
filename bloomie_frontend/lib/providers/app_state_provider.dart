@@ -44,7 +44,7 @@ class AppStateProvider extends ChangeNotifier {
         id: '1',
         email: email,
         phone: '+1234567890',
-        babyName: 'Amy',
+        babyName: 'Child',
       );
       _isAuthenticated = true;
       

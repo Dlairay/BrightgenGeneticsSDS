@@ -1,13 +1,13 @@
 from typing import Optional, Dict
 from google.cloud import firestore
 
-from app.core.database import get_db
+from app.repositories.base_repository import BaseRepository
 
 
-class UserRepository:
+class UserRepository(BaseRepository):
     def __init__(self):
-        self.db = get_db()
-        self.collection = self.db.collection("users")
+        super().__init__()
+        self.collection = self.get_collection("users")
     
     async def create_user(self, user_data: Dict) -> str:
         user_doc = {

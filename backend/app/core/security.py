@@ -40,11 +40,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
         
         db = get_db()
-        user_doc = db.collection("users").document(user_id).get()
+        # Use bloomie structure: bloomie/data/users
+        user_doc = db.collection("bloomie").document("data").collection("users").document(user_id).get()
         if not user_doc.exists:
             raise HTTPException(status_code=401, detail="User not found")
         
         user_data = user_doc.to_dict()
         return User(id=user_id, name=user_data["name"], email=user_data["email"])
-    except jwt.PyJWTError:
+    except jwt.PyJWTError as e:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")

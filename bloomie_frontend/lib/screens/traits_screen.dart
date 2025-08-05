@@ -6,7 +6,8 @@ import '../models/trait_models.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/utils/logger.dart';
-import 'single_child_dashboard.dart';
+import '../core/widgets/persistent_bottom_nav.dart';
+import '../main.dart';
 
 class TraitsScreen extends StatefulWidget {
   final String childId;
@@ -65,62 +66,62 @@ class _TraitsScreenState extends State<TraitsScreen> {
     }
   }
   
-  void _navigateBack() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const SingleChildDashboard()),
-    );
-  }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: _navigateBack,
-                    icon: const Icon(Icons.arrow_back),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.cardOrange,
-                      foregroundColor: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Genetic Traits Report',
-                          style: AppTextStyles.h1,
-                        ),
-                        Text(
-                          'For $_childName',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Content
-              Expanded(
-                child: _buildContent(),
-              ),
-            ],
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bloomie_background3.png'),
+            fit: BoxFit.cover,
           ),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SafeArea(
+                bottom: false, // Don't add safe area to bottom
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Genetic Traits Report',
+                            style: AppTextStyles.h1,
+                          ),
+                          Text(
+                            'For $_childName',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Content
+                      Expanded(
+                        child: _buildContent(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Persistent bottom navigation
+            PersistentBottomNav(
+              currentChildId: widget.childId,
+              currentChildName: _childName,
+              selectedIndex: 1, // Home is selected (since this is accessed from home)
+            ),
+          ],
         ),
       ),
     );

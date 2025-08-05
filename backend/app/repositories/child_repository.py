@@ -2,7 +2,7 @@ from typing import List, Dict, Optional
 from google.cloud import firestore
 import datetime
 
-from app.core.database import get_db
+from app.repositories.base_repository import BaseRepository
 from app.models.child_profile import ChildProfile
 
 
@@ -17,11 +17,11 @@ def _convert_firestore_timestamps_to_strings(obj):
         return obj
 
 
-class ChildRepository:
+class ChildRepository(BaseRepository):
     def __init__(self):
-        self.db = get_db()
-        self.profiles_collection = self.db.collection("profiles")
-        self.user_children_collection = self.db.collection("user_children")
+        super().__init__()
+        self.profiles_collection = self.get_collection("children")
+        self.user_children_collection = self.get_collection("user_children")
     
     async def get_profile_doc_ref(self, child_id: str) -> firestore.DocumentReference:
         return self.profiles_collection.document(str(child_id))
@@ -112,3 +112,37 @@ class ChildRepository:
             "traits": _convert_firestore_timestamps_to_strings(traits_data),
             "logs": _convert_firestore_timestamps_to_strings(logs_data)
         }
+    
+    async def save_immunity_data(self, child_id: str, immunity_data: Dict):
+        """Save pre-computed immunity recommendations to child profile."""
+        immunity_data['created_at'] = firestore.SERVER_TIMESTAMP
+        immunity_data['last_updated'] = firestore.SERVER_TIMESTAMP
+        
+        doc_ref = await self.get_profile_doc_ref(child_id)
+        doc_ref.set({"immunity_recommendations": immunity_data}, merge=True)
+    
+    async def load_immunity_data(self, child_id: str) -> Dict:
+        """Load pre-computed immunity recommendations from child profile."""
+        doc_ref = await self.get_profile_doc_ref(child_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            data = doc.to_dict()
+            return data.get("immunity_recommendations", {})
+        return {}
+    
+    async def save_roadmap_data(self, child_id: str, roadmap_data: Dict):
+        """Save pre-computed growth roadmap to child profile."""
+        roadmap_data['created_at'] = firestore.SERVER_TIMESTAMP
+        roadmap_data['last_updated'] = firestore.SERVER_TIMESTAMP
+        
+        doc_ref = await self.get_profile_doc_ref(child_id)
+        doc_ref.set({"roadmap": roadmap_data}, merge=True)
+    
+    async def load_roadmap_data(self, child_id: str) -> Dict:
+        """Load pre-computed growth roadmap from child profile."""
+        doc_ref = await self.get_profile_doc_ref(child_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            data = doc.to_dict()
+            return data.get("roadmap", {})
+        return {}

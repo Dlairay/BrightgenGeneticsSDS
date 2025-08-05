@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/widgets/custom_button.dart';
-import 'single_child_dashboard.dart';
+import '../main.dart';
 
 class DynamicQuestionnaireScreen extends StatefulWidget {
   final String childId;
@@ -96,7 +96,11 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    Image.asset(
+                      'assets/images/sp2.png', // Using error/warning icon
+                      width: 64,
+                      height: 64,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       provider.errorMessage!,
@@ -114,7 +118,7 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
                       backgroundColor: Colors.grey,
                       onPressed: () => Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => const SingleChildDashboard(),
+                          builder: (context) => const Dashboard(),
                         ),
                       ),
                     ),
@@ -159,7 +163,7 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
                     backgroundColor: Colors.grey,
                     onPressed: () => Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (context) => const SingleChildDashboard(),
+                        builder: (context) => const Dashboard(),
                       ),
                     ),
                   ),
@@ -178,41 +182,21 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
         final child = authProvider.getChildById(widget.childId);
         final childName = child?.name ?? 'Child';
         
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const SingleChildDashboard(),
+        return Center(
+          child: Column(
+            children: [
+              Text(
+                '📝 Check-in',
+                style: AppTextStyles.h3,
+              ),
+              Text(
+                childName,
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.cardOrange,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.chevron_left, color: Colors.black),
-              ),
-            ),
-            Column(
-              children: [
-                Text(
-                  '📝 Check-in',
-                  style: AppTextStyles.h3,
-                ),
-                Text(
-                  childName,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const Icon(Icons.person_outline, size: 28),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -298,6 +282,19 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
           // Navigation buttons (matching frontend.html pattern)
           Row(
             children: [
+              // Previous button (if not first question)
+              if (session.canGoPrevious) ...[
+                Expanded(
+                  child: CustomButton(
+                    text: 'Previous',
+                    onPressed: _previousQuestion,
+                    backgroundColor: Colors.grey,
+                    iconPath: 'assets/images/footstep.png',
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              
               // Next/Submit button
               Expanded(
                 child: CustomButton(
@@ -306,22 +303,9 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
                   backgroundColor: provider.isCurrentQuestionAnswered 
                       ? AppColors.buttonOrange 
                       : Colors.grey,
-                  icon: session.isLastQuestion ? Icons.check : Icons.chevron_right,
+                  iconPath: session.isLastQuestion ? 'assets/images/sp1.png' : 'assets/images/footstep.png',
                 ),
               ),
-              
-              // Previous button (if not first question)
-              if (session.canGoPrevious) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomButton(
-                    text: 'Previous',
-                    onPressed: _previousQuestion,
-                    backgroundColor: Colors.grey,
-                    icon: Icons.chevron_left,
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -347,7 +331,7 @@ class QuestionnaireResultsScreen extends StatelessWidget {
               return const Center(child: Text('No results available'));
             }
             
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,10 +340,10 @@ class QuestionnaireResultsScreen extends StatelessWidget {
                   Center(
                     child: Column(
                       children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 64,
+                        Image.asset(
+                          'assets/images/sp1.png', // Using success icon
+                          width: 64,
+                          height: 64,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -407,47 +391,40 @@ class QuestionnaireResultsScreen extends StatelessWidget {
                       style: AppTextStyles.h3,
                     ),
                     const SizedBox(height: 16),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: result.recommendations.length,
-                        itemBuilder: (context, index) {
-                          final rec = result.recommendations[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(15),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green.shade200),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  rec.trait,
-                                  style: AppTextStyles.label.copyWith(
-                                    color: Colors.green.shade800,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Goal: ${rec.goal}',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Activity: ${rec.activity}',
-                                  style: AppTextStyles.bodySmall,
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                    // Replace Expanded + ListView with direct Column
+                    ...result.recommendations.map((rec) => Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
-                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rec.trait,
+                            style: AppTextStyles.label.copyWith(
+                              color: Colors.green.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Goal: ${rec.goal}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Activity: ${rec.activity}',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ],
+                      ),
+                    )).toList(),
                   ],
                   
                   const SizedBox(height: 24),
@@ -459,7 +436,7 @@ class QuestionnaireResultsScreen extends StatelessWidget {
                       provider.resetSession();
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => const SingleChildDashboard(),
+                          builder: (context) => const Dashboard(),
                         ),
                       );
                     },

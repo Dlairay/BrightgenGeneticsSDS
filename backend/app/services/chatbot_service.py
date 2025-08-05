@@ -1,12 +1,15 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import uuid
+import re
+import json
 from fastapi import HTTPException, status
-from google.genai import types
 from app.repositories.chatbot_repository import ChatbotRepository
 from app.repositories.child_repository import ChildRepository
 from app.repositories.trait_repository import TraitRepository
+from app.repositories.medical_log_repository import MedicalLogRepository
 from app.agents.chatbot_agent import ChildCareChatbot
+from app.agents.medical_visit_agent import MedicalVisitLogGenerator
 from app.core.utils import prepare_image_for_llm, validate_image_type
 
 
@@ -26,11 +29,15 @@ class ChatbotService:
             self.chatbot_repo = ChatbotRepository()
             self.child_repo = ChildRepository()
             self.trait_repo = TraitRepository()
+            self.medical_log_repo = MedicalLogRepository()
+            self.medical_log_generator = MedicalVisitLogGenerator()
+            
             # Use shared chatbot instance
             if ChatbotService._chatbot is None:
                 ChatbotService._chatbot = ChildCareChatbot()
             self.chatbot = ChatbotService._chatbot
             self._initialized = False
+            self._immunity_regex_loaded = False
     
     async def initialize(self):
         """Initialize the chatbot service if not already initialized."""
@@ -233,14 +240,14 @@ class ChatbotService:
             return None
     
     
-    async def generate_structured_log(
+    async def generate_medical_logs_only(
         self,
         session_id: str,
         user_id: str,
         child_id: str
     ) -> Dict[str, Any]:
-        """Generate structured log entry from Dr. Bloom conversation using the log generator agent."""
-        print("Generating structured log from Dr. Bloom conversation...")
+        """Generate medical visit logs from Dr. Bloom conversation. Dr. Bloom is now medical-focused only."""
+        print("🏥 DR. BLOOM: Checking conversation for medical log generation...")
         
         # Get child context for traits
         child_context = await self._get_child_context(child_id)
@@ -250,145 +257,81 @@ class ChatbotService:
         conversation_messages = await self.chatbot_repo.get_conversation_messages(session_id)
         
         if not conversation_messages:
-            print("No conversation messages found, using fallback")
+            print("❌ No conversation messages found")
             return {
-                "interpreted_traits": [],
-                "recommendations": [
-                    {"trait": "general", "goal": "Monitor child's condition", "activity": "Follow up as needed"}
-                ],
-                "summary": "Dr. Bloom consultation completed. No specific concerns were discussed.",
-                "followup_questions": [
-                    {"question": "How has your child been since the Dr. Bloom consultation?", 
-                     "options": ["Much better", "Somewhat better", "No change", "Concerning changes"]}
-                ]
+                "medical_logs_created": 0,
+                "summary": "Dr. Bloom consultation completed, but no conversation data was found.",
+                "status": "no_conversation"
             }
         
-        # Build conversation text for the agent
+        # Build conversation text for analysis
         conversation_text = "CONVERSATION HISTORY:\n\n"
         for msg in conversation_messages:
             conversation_text += f"Parent: {msg.get('user_message', '')}\n"
             conversation_text += f"Dr. Bloom: {msg.get('agent_response', '')}\n\n"
         
-        # Create the prompt for the log generator agent
-        log_generation_prompt = f"""
-{conversation_text}
-
-CHILD TRAITS AVAILABLE: {[t.get('name') for t in child_traits]}
-
-Analyze the conversation above and create a structured log entry.
-Focus on the EXACT issue the parent mentioned and the EXACT recommendations Dr. Bloom gave.
-"""
+        # Check for medical topics - not just immunity anymore
+        print(f"🔍 ANALYZING CONVERSATION for medical topics...")
+        print(f"🔍 CONVERSATION LENGTH: {len(conversation_text)} characters")
+        print(f"🔍 CONVERSATION PREVIEW: {conversation_text[:300]}...")
         
-        # Instead of using a new session, let's directly parse the conversation
-        # This avoids the session not found error
-        print(f"Analyzing conversation with {len(conversation_messages)} messages")
+        # Check for immunity-specific mentions
+        immunity_mentions = self._check_immunity_mentions(conversation_text)
+        print(f"🎯 IMMUNITY MENTIONS: {immunity_mentions}")
         
-        # Extract the parent's concerns and Dr. Bloom's advice
-        parent_concerns = []
-        dr_bloom_responses = []
+        # Check for general medical discussion
+        has_medical_discussion = self._contains_medical_discussion(conversation_text)
+        print(f"🩺 MEDICAL DISCUSSION CHECK: {has_medical_discussion}")
         
-        for msg in conversation_messages:
-            user_msg = msg.get('user_message', '').strip()
-            dr_response = msg.get('agent_response', '').strip()
-            
-            # Skip the initial greeting
-            if user_msg and "consult with Dr. Bloom" not in user_msg:
-                parent_concerns.append(user_msg)
-            
-            if dr_response:
-                dr_bloom_responses.append(dr_response)
+        medical_logs_created = 0
         
-        if not parent_concerns or not dr_bloom_responses:
-            print("No meaningful conversation found")
-            return self._get_fallback_log(conversation_messages, child_traits)
-        
-        # Extract specific recommendations from Dr. Bloom's responses
-        main_concern = parent_concerns[0]
-        recommendations = []
-        
-        # Look for specific advice patterns in Dr. Bloom's responses
-        combined_response = " ".join(dr_bloom_responses).lower()
-        
-        if "acknowledge" in combined_response or "validate" in combined_response or "feelings" in combined_response:
-            recommendations.append({
-                "trait": "emotional_regulation",
-                "goal": "Help child process emotions",
-                "activity": "Acknowledge child's feelings about the situation"
-            })
-        
-        if "alternative" in combined_response or "distract" in combined_response or "offer" in combined_response:
-            recommendations.append({
-                "trait": "behavioral_management",
-                "goal": "Redirect attention from disappointment",
-                "activity": "Offer alternative activities or choices"
-            })
-        
-        if "calm" in combined_response or "breath" in combined_response or "coping" in combined_response:
-            recommendations.append({
-                "trait": "coping_skills",
-                "goal": "Teach coping strategies",
-                "activity": "Practice calming techniques like deep breathing"
-            })
-        
-        if "boundary" in combined_response or "limit" in combined_response:
-            recommendations.append({
-                "trait": "behavioral_management",
-                "goal": "Set clear boundaries",
-                "activity": "Establish and maintain consistent limits"
-            })
-        
-        # If no specific recommendations found, create one based on the concern
-        if not recommendations:
-            recommendations = [{
-                "trait": "general",
-                "goal": "Address the specific concern",
-                "activity": f"Follow Dr. Bloom's advice for handling {main_concern[:30]}..."
-            }]
-        
-        # Create summary
-        summary = f"Parent reported {main_concern}. Dr. Bloom recommended "
-        if len(recommendations) == 1:
-            summary += f"{recommendations[0]['activity'].lower()}."
+        # Generate medical log if ANY medical discussion occurred
+        if immunity_mentions or has_medical_discussion:
+            print(f"🏥 MEDICAL DISCUSSION DETECTED - Creating medical visit log...")
+            try:
+                medical_log = await self.medical_log_generator.generate_medical_log(
+                    child_id=child_id,
+                    session_id=session_id,
+                    conversation_messages=conversation_messages,
+                    child_traits=child_traits,
+                    immunity_traits_mentioned=immunity_mentions
+                )
+                
+                print(f"🏥 MEDICAL LOG GENERATED SUCCESSFULLY")
+                print(f"🏥 MEDICAL LOG KEYS: {list(medical_log.keys())}")
+                
+                # Save the medical log
+                log_id = await self.medical_log_repo.save_medical_log(medical_log)
+                print(f"✅ MEDICAL VISIT LOG SAVED WITH ID: {log_id}")
+                medical_logs_created = 1
+                
+                # Return the actual medical log content
+                return {
+                    "medical_logs_created": medical_logs_created,
+                    "summary": medical_log.get('problem_discussed', 'Medical consultation completed'),
+                    "status": "completed",
+                    "immunity_traits_detected": immunity_mentions,
+                    "medical_log": medical_log,
+                    "log_id": log_id
+                }
+                
+            except Exception as e:
+                print(f"💥 ERROR GENERATING MEDICAL VISIT LOG:")
+                print(f"   Error type: {type(e).__name__}")
+                print(f"   Error message: {str(e)}")
+                import traceback
+                print(f"   Traceback: {traceback.format_exc()}")
         else:
-            activities = [r['activity'].lower() for r in recommendations[:2]]
-            summary += f"{' and '.join(activities)}."
-        
-        # Create follow-up question specific to the issue
-        followup_question = {
-            "question": f"How did your child respond when you tried these strategies for the {main_concern[:30]}... issue?",
-            "options": ["Much better", "Some improvement", "No change", "Made things worse"]
-        }
-        
-        structured_log = {
-            "interpreted_traits": [],  # Empty for general behavioral issues
-            "recommendations": recommendations[:3],  # Limit to 3
-            "summary": summary,
-            "followup_questions": [followup_question]
-        }
-        
-        print(f"Generated structured log: {structured_log}")
-        return structured_log
-        
-    def _get_fallback_log(self, conversation_messages: List[Dict], child_traits: List[Dict]) -> Dict[str, Any]:
-        """Generate fallback log when conversation parsing fails."""
-        main_concern = "general health concern"
-        for msg in conversation_messages:
-            user_msg = msg.get('user_message', '').strip()
-            if user_msg and "consult with Dr. Bloom" not in user_msg:
-                main_concern = user_msg
-                break
+            print(f"ℹ️  NO MEDICAL TOPICS DETECTED - No medical log needed")
         
         return {
-            "interpreted_traits": [],
-            "recommendations": [
-                {"trait": "general", "goal": "Address parental concern", "activity": f"Monitor and follow Dr. Bloom's advice regarding: {main_concern[:50]}"}
-            ],
-            "summary": f"Parent reported: {main_concern}. Dr. Bloom provided guidance and recommendations.",
-            "followup_questions": [
-                {"question": f"How is the situation with: {main_concern[:40]}...?", 
-                 "options": ["Resolved", "Improving", "No change", "Need more help"]}
-            ]
+            "medical_logs_created": medical_logs_created,
+            "summary": "No medical topics were discussed in this consultation.",
+            "status": "completed",
+            "immunity_traits_detected": immunity_mentions
+            # Don't include medical_log field when None to avoid serialization issues
         }
+        
     
     async def delete_conversation_completely(self, session_id: str, user_id: str) -> bool:
         """Delete a conversation and all its messages immediately."""
@@ -400,4 +343,79 @@ Focus on the EXACT issue the parent mentioned and the EXACT recommendations Dr. 
         # Delete the conversation and its messages
         success = await self.chatbot_repo.delete_conversation(conversation["id"])
         return success
+    
+    def _load_immunity_regex(self):
+        """Load the immunity trait regex pattern from config."""
+        try:
+            with open('app/core/immunity_regex_config.json', 'r') as f:
+                config = json.load(f)
+                self.immunity_pattern = re.compile(config['pattern'], re.IGNORECASE)
+                self.immunity_trait_names = config['trait_names']
+                print(f"✅ Loaded immunity regex pattern with {len(self.immunity_trait_names)} trait names")
+        except Exception as e:
+            print(f"⚠️ Could not load immunity regex config: {e}")
+            # Fallback pattern
+            self.immunity_pattern = re.compile(
+                r'\b(asthma|eczema|uv sensitivity|sun sensitivity|red hair)\b', 
+                re.IGNORECASE
+            )
+            self.immunity_trait_names = []
+        finally:
+            self._immunity_regex_loaded = True
+    
+    def _check_immunity_mentions(self, text: str) -> List[str]:
+        """Check if immunity traits are mentioned in text."""
+        if not self._immunity_regex_loaded:
+            self._load_immunity_regex()
+        
+        print(f"🔍 IMMUNITY REGEX CHECK:")
+        print(f"   Text being analyzed: '{text[:200]}...'")
+        print(f"   Pattern: {self.immunity_pattern.pattern[:100]}...")
+        
+        matches = self.immunity_pattern.findall(text)
+        print(f"   Raw matches found: {matches}")
+        
+        # Deduplicate while preserving order
+        unique_matches = list(dict.fromkeys(matches))
+        print(f"   Unique matches: {unique_matches}")
+        
+        return unique_matches
+    
+    def _contains_medical_discussion(self, text: str) -> bool:
+        """Check if conversation contains any medical discussion topics."""
+        medical_keywords = [
+            # Symptoms
+            'fever', 'cough', 'rash', 'pain', 'ache', 'hurt', 'sick', 'illness', 
+            'vomit', 'nausea', 'diarrhea', 'constipation', 'headache', 'dizzy',
+            'tired', 'fatigue', 'sleep', 'appetite', 'eating',
+            
+            # Medical conditions
+            'infection', 'virus', 'bacterial', 'cold', 'flu', 'pneumonia',
+            'bronchitis', 'asthma', 'allergies', 'eczema', 'dermatitis',
+            'diabetes', 'seizure', 'epilepsy', 'autism', 'adhd',
+            
+            # Medical terms
+            'doctor', 'physician', 'pediatrician', 'hospital', 'clinic',
+            'appointment', 'checkup', 'medication', 'medicine', 'treatment',
+            'diagnosis', 'symptoms', 'prescription', 'vaccine', 'immunization',
+            
+            # Body parts/systems
+            'breathing', 'respiratory', 'lungs', 'heart', 'stomach', 'digestive',
+            'skin', 'eyes', 'ears', 'throat', 'nose', 'brain', 'neurological'
+        ]
+        
+        print(f"🔍 MEDICAL KEYWORD CHECK:")
+        print(f"   Text being analyzed: '{text[:200]}...'")
+        
+        text_lower = text.lower()
+        found_keywords = []
+        
+        for keyword in medical_keywords:
+            if keyword in text_lower:
+                found_keywords.append(keyword)
+                print(f"🩺 MEDICAL KEYWORD DETECTED: '{keyword}'")
+        
+        print(f"   Total keywords found: {len(found_keywords)} - {found_keywords}")
+        
+        return len(found_keywords) > 0
     

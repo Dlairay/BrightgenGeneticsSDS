@@ -54,8 +54,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bloomie_background2.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
         child: Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
             return Padding(
@@ -67,29 +73,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     // Bloomie Logo
                     Container(
-                      width: 200,
-                      height: 80,
+                      width: 400, // 2x bigger (was 200)
+                      height: 160, // 2x bigger (was 80)
                       decoration: const BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage('assets/images/bloomie_icon.png'),
                           fit: BoxFit.contain,
                         ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 40),
-                    
-                    // Welcome Text
-                    Text(
-                      'Bloomie🌸',
-                      style: AppTextStyles.h1.copyWith(fontSize: 32),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Welcome Back',
-                      style: AppTextStyles.h2.copyWith(
-                        color: AppColors.textGray,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     
@@ -175,47 +165,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     
                     const SizedBox(height: 24),
-                    
-                    // Demo Credentials Info
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Colors.blue.shade600, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Demo Credentials',
-                                style: TextStyle(
-                                  color: Colors.blue.shade800,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Email: sarah.johnson@example.com\nPassword: password123',
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontSize: 14,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
             );
           },
+        ),
         ),
       ),
     );

@@ -1,17 +1,17 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
-from app.core.database import get_db
+from app.repositories.base_repository import BaseRepository
 from google.cloud import firestore
 
 
-class ChatbotRepository:
+class ChatbotRepository(BaseRepository):
     """Repository for chatbot conversation data."""
     
     def __init__(self):
-        self.db = get_db()
-        self.conversations_collection = "conversations"
-        self.messages_collection = "messages"
+        super().__init__()
+        self.conversations_collection = self.get_collection("conversations")
+        self.messages_collection = self.get_collection("messages")
     
     async def create_conversation(
         self,
@@ -34,14 +34,14 @@ class ChatbotRepository:
         }
         
         # Store in Firestore
-        self.db.collection(self.conversations_collection).document(conversation_id).set(conversation_data)
+        self.conversations_collection.document(conversation_id).set(conversation_data)
         
         return conversation_data
     
     async def get_conversation(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get conversation by session ID."""
         # Query by session_id
-        conversations = self.db.collection(self.conversations_collection).where(
+        conversations = self.conversations_collection.where(
             "session_id", "==", session_id
         ).limit(1).stream()
         
@@ -57,7 +57,7 @@ class ChatbotRepository:
         limit: int = 20
     ) -> List[Dict[str, Any]]:
         """Get conversations for a user, optionally filtered by child."""
-        query = self.db.collection(self.conversations_collection).where(
+        query = self.conversations_collection.where(
             "user_id", "==", user_id
         )
         
@@ -99,12 +99,12 @@ class ChatbotRepository:
             message_data["image_ref"] = f"images/{session_id}/{message_id}"
         
         # Store message
-        self.db.collection(self.messages_collection).document(message_id).set(message_data)
+        self.messages_collection.document(message_id).set(message_data)
         
         # Update conversation
         conversation = await self.get_conversation(session_id)
         if conversation:
-            self.db.collection(self.conversations_collection).document(
+            self.conversations_collection.document(
                 conversation["id"]
             ).update({
                 "updated_at": datetime.utcnow().isoformat(),
@@ -122,7 +122,7 @@ class ChatbotRepository:
         messages = []
         
         # Query without ordering to avoid index requirement
-        query = self.db.collection(self.messages_collection).where(
+        query = self.messages_collection.where(
             "session_id", "==", session_id
         ).limit(limit)
         
@@ -138,7 +138,7 @@ class ChatbotRepository:
         """Delete a conversation and its messages."""
         try:
             # Get conversation to find session_id
-            conv_doc = self.db.collection(self.conversations_collection).document(conversation_id).get()
+            conv_doc = self.conversations_collection.document(conversation_id).get()
             if not conv_doc.exists:
                 print(f"Conversation {conversation_id} not found for deletion")
                 return False
@@ -146,7 +146,7 @@ class ChatbotRepository:
             session_id = conv_doc.to_dict().get("session_id")
             
             # Delete all messages
-            messages = self.db.collection(self.messages_collection).where(
+            messages = self.messages_collection.where(
                 "session_id", "==", session_id
             ).stream()
             
@@ -157,7 +157,7 @@ class ChatbotRepository:
                 message_count += 1
             
             # Delete conversation
-            batch.delete(self.db.collection(self.conversations_collection).document(conversation_id))
+            batch.delete(self.conversations_collection.document(conversation_id))
             
             batch.commit()
             print(f"Deleted conversation {conversation_id} and {message_count} messages")
@@ -173,7 +173,7 @@ class ChatbotRepository:
             cutoff_time = (datetime.utcnow() - timedelta(hours=hours_old)).isoformat()
             
             # Find old Dr. Bloom conversations
-            old_conversations = self.db.collection(self.conversations_collection).where(
+            old_conversations = self.conversations_collection.where(
                 "is_dr_bloom", "==", True
             ).where(
                 "created_at", "<", cutoff_time

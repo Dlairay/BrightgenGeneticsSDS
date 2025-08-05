@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     
     google_application_credentials: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     gcp_project_id: Optional[str] = os.getenv("GCP_PROJECT_ID")
+    firestore_collection_prefix: str = os.getenv("FIRESTORE_COLLECTION_PREFIX", "")
     
     class Config:
         env_file = ".env"
