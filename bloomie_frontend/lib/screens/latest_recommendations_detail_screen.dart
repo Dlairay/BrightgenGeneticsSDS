@@ -35,6 +35,15 @@ class _LatestRecommendationsDetailScreenState extends State<LatestRecommendation
       });
 
       final data = await ApiService.getLatestRecommendationsDetail(widget.childId);
+      
+      // Debug: Log the structure of the returned data
+      AppLogger.info('Recommendations detail data structure:');
+      if (data['recommendations'] != null && data['recommendations'].isNotEmpty) {
+        final firstRec = data['recommendations'][0];
+        AppLogger.info('First recommendation keys: ${firstRec.keys.toList()}');
+        AppLogger.info('First recommendation data: $firstRec');
+      }
+      
       setState(() {
         _detailData = data;
         _isLoading = false;
@@ -335,8 +344,17 @@ class _LatestRecommendationsDetailScreenState extends State<LatestRecommendation
 
   Widget _buildRecommendationCard(dynamic recommendation) {
     final recMap = recommendation as Map<String, dynamic>? ?? {};
-    final traitName = recMap['trait_name'] ?? 'Unknown Trait';
-    final geneId = recMap['gene_id'] ?? '';
+    
+    // Debug: Log all available fields in the recommendation
+    AppLogger.info('Building recommendation card with fields: ${recMap.keys.toList()}');
+    
+    // Try multiple possible field names for trait
+    final traitName = recMap['trait_name'] ?? 
+                      recMap['trait'] ?? 
+                      recMap['name'] ?? 
+                      recMap['trait_title'] ?? 
+                      'Unknown Trait';
+    final geneId = recMap['gene_id'] ?? recMap['gene'] ?? '';
     final goal = recMap['goal'] ?? '';
     final activity = recMap['activity'] ?? '';
     final tldr = recMap['tldr'] ?? recMap['action'] ?? 'No summary available';

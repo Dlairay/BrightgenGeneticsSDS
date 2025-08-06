@@ -78,3 +78,8 @@ htmlcov/
 *.sql
 *.sqlite
 *.db
+
+# Data directories
+app/data/knowledgebase/
+app/data/chroma_db/
+app/data/
