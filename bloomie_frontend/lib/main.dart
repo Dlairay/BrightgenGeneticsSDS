@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'screens/dynamic_questionnaire_screen.dart';
 import 'screens/immunity_dashboard_screen.dart';
@@ -668,8 +669,8 @@ class _DashboardState extends State<Dashboard> {
               _buildWeeklyCheckInCard(context, childId),
             ],
           ),
-          // Add navigation arrows for web
-          if (MediaQuery.of(context).size.width > 600) // Only show on web/desktop
+          // Add navigation arrows for web only
+          if (kIsWeb && MediaQuery.of(context).size.width > 600) // Only show on web platform
             Positioned(
               left: 10,
               top: 95,
@@ -685,7 +686,7 @@ class _DashboardState extends State<Dashboard> {
                 ),
               ),
             ),
-          if (MediaQuery.of(context).size.width > 600) // Only show on web/desktop
+          if (kIsWeb && MediaQuery.of(context).size.width > 600) // Only show on web platform
             Positioned(
               right: 10,
               top: 95,
