@@ -56,11 +56,15 @@ class CustomButton extends StatelessWidget {
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    text,
-                    style: AppTextStyles.button.copyWith(
-                      color: textColor ?? Colors.white,
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: AppTextStyles.button.copyWith(
+                        color: textColor ?? Colors.white,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (icon != null || iconPath != null) ...[

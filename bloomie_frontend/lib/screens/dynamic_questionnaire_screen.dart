@@ -187,7 +187,9 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
             children: [
               Text(
                 '📝 Check-in',
-                style: AppTextStyles.h3,
+                style: AppTextStyles.h3.copyWith(
+                  color: const Color(0xFF667eea), // Same as home icon color
+                ),
               ),
               Text(
                 childName,
@@ -215,7 +217,7 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
         widthFactor: progress,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.progressBar,
+            color: const Color(0xFF667eea), // Same as home icon
             borderRadius: BorderRadius.circular(3),
           ),
         ),
@@ -259,9 +261,9 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.progressBar : Colors.white,
+                  color: isSelected ? const Color(0xFF667eea) : Colors.white,
                   border: Border.all(
-                    color: isSelected ? AppColors.progressBar : Colors.grey.shade300,
+                    color: isSelected ? const Color(0xFF667eea) : Colors.grey.shade300,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(8),
@@ -280,34 +282,44 @@ class _DynamicQuestionnaireScreenState extends State<DynamicQuestionnaireScreen>
           const SizedBox(height: 20),
           
           // Navigation buttons (matching frontend.html pattern)
-          Row(
-            children: [
-              // Previous button (if not first question)
-              if (session.canGoPrevious) ...[
+          if (session.canGoPrevious) 
+            Row(
+              children: [
                 Expanded(
                   child: CustomButton(
                     text: 'Previous',
                     onPressed: _previousQuestion,
-                    backgroundColor: Colors.grey,
-                    iconPath: 'assets/images/footstep.png',
+                    backgroundColor: const Color(0xFFFFE1DD), // Pastel red/pink
+                    textColor: const Color(0xFF6B4545), // Darker text for contrast
                   ),
                 ),
                 const SizedBox(width: 12),
-              ],
-              
-              // Next/Submit button
-              Expanded(
-                child: CustomButton(
-                  text: session.isLastQuestion ? 'Submit' : 'Next',
-                  onPressed: provider.isCurrentQuestionAnswered ? () => _nextQuestion() : null,
-                  backgroundColor: provider.isCurrentQuestionAnswered 
-                      ? AppColors.buttonOrange 
-                      : Colors.grey,
-                  iconPath: session.isLastQuestion ? 'assets/images/sp1.png' : 'assets/images/footstep.png',
+                Expanded(
+                  child: CustomButton(
+                    text: session.isLastQuestion ? 'Submit' : 'Next',
+                    onPressed: provider.isCurrentQuestionAnswered ? () => _nextQuestion() : null,
+                    backgroundColor: provider.isCurrentQuestionAnswered 
+                        ? const Color(0xFFE8F5E8) // Pastel green
+                        : Colors.grey,
+                    textColor: provider.isCurrentQuestionAnswered 
+                        ? const Color(0xFF2A5A3C) // Darker text for contrast
+                        : Colors.white,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            CustomButton(
+              text: session.isLastQuestion ? 'Submit' : 'Next',
+              onPressed: provider.isCurrentQuestionAnswered ? () => _nextQuestion() : null,
+              backgroundColor: provider.isCurrentQuestionAnswered 
+                  ? const Color(0xFFE8F5E8) // Pastel green
+                  : Colors.grey,
+              textColor: provider.isCurrentQuestionAnswered 
+                  ? const Color(0xFF2A5A3C) // Darker text for contrast
+                  : Colors.white,
+              width: double.infinity,
+            ),
         ],
       ),
     );
@@ -362,16 +374,16 @@ class QuestionnaireResultsScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: const Color(0xFFE6E9FF), // Light tint of 0xFF667eea
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
+                      border: Border.all(color: const Color(0xFF667eea)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Summary',
-                          style: AppTextStyles.h3.copyWith(color: Colors.blue.shade800),
+                          style: AppTextStyles.h3.copyWith(color: const Color(0xFF667eea)),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -424,7 +436,7 @@ class QuestionnaireResultsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                    )).toList(),
+                    )),
                   ],
                   
                   const SizedBox(height: 24),

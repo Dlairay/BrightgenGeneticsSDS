@@ -117,21 +117,29 @@ class PersistentBottomNav extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              iconPath,
-              width: 32,
-              height: 32,
-              color: AppColors.withOpacity(color, 0.7),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Fredoka',
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Image.asset(
+                iconPath,
+                width: 28, // Reduced from 32
+                height: 28, // Reduced from 32
                 color: AppColors.withOpacity(color, 0.7),
+              ),
+            ),
+            const SizedBox(height: 1), // Reduced from 2
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Fredoka',
+                  fontSize: 8, // Reduced from 9
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.withOpacity(color, 0.7),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

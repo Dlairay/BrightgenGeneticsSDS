@@ -36,12 +36,10 @@ class _LatestRecommendationsDetailScreenState extends State<LatestRecommendation
 
       final data = await ApiService.getLatestRecommendationsDetail(widget.childId);
       
-      // Debug: Log the structure of the returned data
-      AppLogger.info('Recommendations detail data structure:');
-      if (data['recommendations'] != null && data['recommendations'].isNotEmpty) {
-        final firstRec = data['recommendations'][0];
-        AppLogger.info('First recommendation keys: ${firstRec.keys.toList()}');
-        AppLogger.info('First recommendation data: $firstRec');
+      // Debug logging to see the actual data structure
+      AppLogger.info('Latest recommendations detail data: ${data.toString()}');
+      if (data['recommendations'] != null && (data['recommendations'] as List).isNotEmpty) {
+        AppLogger.info('First recommendation structure: ${data['recommendations'][0]}');
       }
       
       setState(() {
@@ -344,19 +342,12 @@ class _LatestRecommendationsDetailScreenState extends State<LatestRecommendation
 
   Widget _buildRecommendationCard(dynamic recommendation) {
     final recMap = recommendation as Map<String, dynamic>? ?? {};
-    
-    // Debug: Log all available fields in the recommendation
-    AppLogger.info('Building recommendation card with fields: ${recMap.keys.toList()}');
-    
-    // Try multiple possible field names for trait
-    final traitName = recMap['trait_name'] ?? 
-                      recMap['trait'] ?? 
-                      recMap['name'] ?? 
-                      recMap['trait_title'] ?? 
-                      'Unknown Trait';
-    final geneId = recMap['gene_id'] ?? recMap['gene'] ?? '';
+    // Handle both 'trait_name' and 'trait' field names for compatibility
+    final traitName = recMap['trait_name'] ?? recMap['trait'] ?? 'Unknown Trait';
+    final geneId = recMap['gene_id'] ?? '';
     final goal = recMap['goal'] ?? '';
     final activity = recMap['activity'] ?? '';
+    // Handle both 'tldr' and 'action' field names
     final tldr = recMap['tldr'] ?? recMap['action'] ?? 'No summary available';
     final frequency = recMap['frequency'] ?? '';
     final duration = recMap['duration'] ?? '';

@@ -390,6 +390,7 @@ class _DrBloomChatScreenState extends State<DrBloomChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent entire UI from moving up
       appBar: AppBar(
         backgroundColor: const Color(0xFFFAF4EA),
         elevation: 0,
@@ -427,120 +428,143 @@ class _DrBloomChatScreenState extends State<DrBloomChatScreen> {
             fit: BoxFit.cover,
           ),
         ),
-        child: Column(
-          children: [
-            // Chat messages area
-            Expanded(
-              child: _isLoading && _messages.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Starting Dr. Bloom session...',
-                            style: TextStyle(
-                              fontFamily: 'Fredoka',
-                              fontSize: 16,
-                              color: Color(0xFF717070),
+        child: GestureDetector(
+          onTap: () {
+            // Dismiss keyboard when tapping outside
+            FocusScope.of(context).unfocus();
+          },
+          child: Stack(
+            children: [
+              // Chat messages area - takes full space
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: 160, // Space for navbar + text input (increased)
+                  ),
+                  child: _isLoading && _messages.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 16),
+                            Text(
+                              'Starting Dr. Bloom session...',
+                              style: TextStyle(
+                                fontFamily: 'Fredoka',
+                                fontSize: 16,
+                                color: Color(0xFF717070),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _messages.length + (_isTyping ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _messages.length && _isTyping) {
+                            return _buildTypingIndicator();
+                          }
+                          return _buildMessageBubble(_messages[index]);
+                        },
                       ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length + (_isTyping ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _messages.length && _isTyping) {
-                          return _buildTypingIndicator();
-                        }
-                        return _buildMessageBubble(_messages[index]);
-                      },
-                    ),
+              ),
             ),
 
-            // Input area
+            // Text input - positioned above navbar, moves with keyboard
             if (!_sessionCompleted)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 4,
-                      offset: Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  bottom: false, // Don't add safe area to bottom
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          decoration: InputDecoration(
-                            hintText: 'Describe your concern...',
-                            hintStyle: const TextStyle(
-                              fontFamily: 'Fredoka',
-                              color: Color(0xFF999999),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                              borderSide: const BorderSide(color: Color(0xFFE1E5E9)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                              borderSide: const BorderSide(color: Color(0xFF4CAF50)),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                          style: const TextStyle(
-                            fontFamily: 'Fredoka',
-                            fontSize: 16,
-                          ),
-                          maxLines: null,
-                          onSubmitted: (_) => _sendMessage(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _sendMessage,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF4CAF50),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.send,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: MediaQuery.of(context).viewInsets.bottom > 0 
+                    ? MediaQuery.of(context).viewInsets.bottom // Stick to keyboard when open
+                    : 70 + MediaQuery.of(context).padding.bottom, // Above full navbar height when keyboard closed
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, -2),
                       ),
                     ],
+                  ),
+                  child: SafeArea(
+                    bottom: false, // Don't add safe area since we're positioning manually
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            decoration: InputDecoration(
+                              hintText: 'Describe your concern...',
+                              hintStyle: const TextStyle(
+                                fontFamily: 'Fredoka',
+                                color: Color(0xFF999999),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: const BorderSide(color: Color(0xFFE1E5E9)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: const BorderSide(color: Color(0xFF4CAF50)),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            style: const TextStyle(
+                              fontFamily: 'Fredoka',
+                              fontSize: 16,
+                            ),
+                            maxLines: null,
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: _sendMessage,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4CAF50),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             
-            // Persistent bottom navigation
-            PersistentBottomNav(
-              currentChildId: widget.childId,
-              currentChildName: widget.childName,
-              selectedIndex: 0, // Dr. Bloom is selected
+            // Persistent bottom navigation - always at bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: PersistentBottomNav(
+                currentChildId: widget.childId,
+                currentChildName: widget.childName,
+                selectedIndex: 0, // Dr. Bloom is selected
+              ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

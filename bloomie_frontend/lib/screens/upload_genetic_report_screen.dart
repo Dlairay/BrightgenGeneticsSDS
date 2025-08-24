@@ -40,6 +40,9 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
   }
   
   Future<void> _pickFile() async {
+    // Dismiss keyboard before opening file picker
+    FocusScope.of(context).unfocus();
+    
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -64,6 +67,9 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
   }
   
   Future<void> _uploadReport() async {
+    // Dismiss keyboard when submitting
+    FocusScope.of(context).unfocus();
+    
     AppLogger.info('Upload attempt started');
     AppLogger.info('Form valid: ${_formKey.currentState!.validate()}');
     AppLogger.info('Selected file path: ${_selectedFile?.path}');
@@ -149,15 +155,29 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent entire UI from moving up
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: GestureDetector(
+          onTap: () {
+            // Dismiss keyboard when tapping outside
+            FocusScope.of(context).unfocus();
+          },
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24.0,
+              right: 24.0,
+              top: 24.0,
+              bottom: MediaQuery.of(context).viewInsets.bottom > 0 
+                  ? MediaQuery.of(context).viewInsets.bottom + 24 // Add padding when keyboard is open
+                  : 24.0,
+            ),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 // Header
                 Row(
                   children: [
@@ -323,7 +343,7 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
                   const SizedBox(height: 16),
                 ],
                 
-                const Spacer(),
+                const SizedBox(height: 32),
                 
                 // Action Buttons
                 Column(
@@ -351,6 +371,8 @@ class _UploadGeneticReportScreenState extends State<UploadGeneticReportScreen> {
                   ],
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ),

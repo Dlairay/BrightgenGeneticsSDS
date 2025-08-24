@@ -140,14 +140,16 @@ class _DashboardState extends State<Dashboard> {
                 Expanded(
                   child: SafeArea(
                     bottom: false, // Don't add safe area to bottom
-                    child: Column(
-                      children: [
-                        _buildHeader(context, childName),
-                        const SizedBox(height: 20),
-                        _buildCarousel(context, childId, childName),
-                        _buildGridSection(context, childId, childName),
-                        const SizedBox(height: 20), // Extra padding at bottom
-                      ],
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildHeader(context, childName),
+                          const SizedBox(height: 20),
+                          _buildCarousel(context, childId, childName),
+                          _buildGridSection(context, childId, childName),
+                          const SizedBox(height: 20), // Extra padding at bottom
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -310,34 +312,42 @@ class _DashboardState extends State<Dashboard> {
             // Text at bottom
             Expanded(
               flex: 3, // 30% of space for text
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: color,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontFamily: 'Fredoka',
+                          fontSize: 11, // Reduced from 12
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontSize: 10,
-                      color: Color(0xFF949494),
+                    const SizedBox(height: 1), // Reduced from 2
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontFamily: 'Fredoka',
+                          fontSize: 9, // Reduced from 10
+                          color: Color(0xFF949494),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

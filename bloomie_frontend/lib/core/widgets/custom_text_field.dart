@@ -11,6 +11,8 @@ class CustomTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final void Function(String)? onFieldSubmitted;
+  final TextInputAction? textInputAction;
   final int? maxLines;
   final bool enabled;
   
@@ -24,6 +26,8 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.onChanged,
+    this.onFieldSubmitted,
+    this.textInputAction,
     this.maxLines = 1,
     this.enabled = true,
   });
@@ -36,6 +40,8 @@ class CustomTextField extends StatelessWidget {
       keyboardType: keyboardType,
       validator: validator,
       onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted ?? (_) => FocusScope.of(context).unfocus(),
+      textInputAction: textInputAction ?? TextInputAction.done,
       maxLines: maxLines,
       enabled: enabled,
       style: AppTextStyles.body,

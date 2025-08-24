@@ -6,22 +6,38 @@ import 'mock_api_service.dart';
 
 class ApiService {
   static late Dio _dio;
-  // Using the actual deployed Cloud Run service URL (matching frontend.html)
-  static const String baseUrl = 'https://child-profiling-api-271271835247.us-central1.run.app';
+  
+  // API Configuration - toggle between local and cloud
+  static const bool useLocalhost = false; // Set to true for local development, false for cloud
+  
+  // Cloud Run API (production)
+  static const String cloudRunUrl = 'https://child-profiling-api-271271835247.us-central1.run.app';
+  
+  // Local API (development)
+  static const String localUrl = 'http://localhost:8000';
+  
+  // Select API based on flag
+  static String get baseUrl => useLocalhost ? localUrl : cloudRunUrl;
+  
   static const String apiKey = 'secure-api-key-2025';
-  static const bool useMockData = false; // Connected to real Cloud Run backend
+  static const bool useMockData = false; // Connected to real backend
   
   static void init() {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 60), // Increased for cold starts
+      receiveTimeout: const Duration(seconds: 60), // Increased for cold starts
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-API-Key': apiKey, // Added API key from frontend.html
       },
     ));
+    
+    // Warm up the Cloud Run service if not using localhost
+    if (!useLocalhost) {
+      _warmupService();
+    }
     
     // Add interceptors
     _dio.interceptors.add(InterceptorsWrapper(
@@ -518,6 +534,29 @@ class ApiService {
         return 'Request cancelled.';
       default:
         return 'Network error. Please check your connection.';
+    }
+  }
+  
+  // Warm up Cloud Run service to prevent cold start delays
+  static Future<void> _warmupService() async {
+    try {
+      AppLogger.info('Warming up Cloud Run service...');
+      
+      // Make a lightweight health check request to wake up the service
+      final response = await _dio.get(
+        '/health',
+        options: Options(
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+      
+      if (response.statusCode == 200) {
+        AppLogger.info('Cloud Run service warmed up successfully');
+      }
+    } catch (e) {
+      // Don't throw errors for warmup failures, just log them
+      AppLogger.warning('Service warmup failed (this is okay): $e');
     }
   }
 }
