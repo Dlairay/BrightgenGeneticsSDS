@@ -651,15 +651,56 @@ class _DashboardState extends State<Dashboard> {
 
   // Carousel section with recommendations and check-in
   Widget _buildCarousel(BuildContext context, String childId, String childName) {
+    final PageController _pageController = PageController(
+      viewportFraction: 0.9, // Show partial cards on sides
+    );
+    
     return Container(
       height: 230,
-      child: PageView(
-        controller: PageController(
-          viewportFraction: 0.9, // Show partial cards on sides
-        ),
+      child: Stack(
         children: [
-          _buildLatestRecommendationsCard(childId, childName, context),
-          _buildWeeklyCheckInCard(context, childId),
+          PageView(
+            controller: _pageController,
+            // Enable mouse drag for web
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              _buildLatestRecommendationsCard(childId, childName, context),
+              _buildWeeklyCheckInCard(context, childId),
+            ],
+          ),
+          // Add navigation arrows for web
+          if (MediaQuery.of(context).size.width > 600) // Only show on web/desktop
+            Positioned(
+              left: 10,
+              top: 95,
+              child: IconButton(
+                onPressed: () => _pageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black54),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white70,
+                  shape: const CircleBorder(),
+                ),
+              ),
+            ),
+          if (MediaQuery.of(context).size.width > 600) // Only show on web/desktop
+            Positioned(
+              right: 10,
+              top: 95,
+              child: IconButton(
+                onPressed: () => _pageController.nextPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                ),
+                icon: const Icon(Icons.arrow_forward_ios, color: Colors.black54),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white70,
+                  shape: const CircleBorder(),
+                ),
+              ),
+            ),
         ],
       ),
     );
