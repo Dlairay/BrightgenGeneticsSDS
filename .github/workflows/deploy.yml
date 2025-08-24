@@ -30,10 +30,13 @@ jobs:
         cd bloomie_frontend
         flutter build web --release --web-renderer html
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/submission'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./bloomie_frontend/build/web
-        publish_branch: gh-pages
+    - name: Deploy built files to submission branch docs folder
+      run: |
+        # Create docs folder and copy built web files
+        mkdir -p docs
+        cp -r bloomie_frontend/build/web/* docs/
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/
+        git commit -m "Update GitHub Pages build" -a || exit 0
+        git push
