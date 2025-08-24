@@ -2,9 +2,9 @@ name: Build and Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches: [ main, submission ]
+    branches: [ submission ]
   pull_request:
-    branches: [ main ]
+    branches: [ submission ]
 
 jobs:
   build-and-deploy:
@@ -32,7 +32,7 @@ jobs:
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/submission'
+      if: github.ref == 'refs/heads/submission'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./bloomie_frontend/build/web
